@@ -444,7 +444,7 @@ function PipelineView({ data }) {
                   { col: 'Consumo mensual', label: 'kWh/mes' },
                   { col: 'Propietario del negocio', label: 'Propietario' },
                   { col: 'Subautopista', label: 'Sub.' },
-                  { col: 'Fecha de cierre - Diario', label: 'Cierre' },
+                  { col: 'Fecha de cierre', label: 'Cierre' },
                 ].map(({ col, label }) => (
                   <th key={col}
                     className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap"
@@ -493,8 +493,8 @@ function PipelineView({ data }) {
                       {row['Subautopista'] && row['Subautopista'] !== '(Sin valor)' ? row['Subautopista'] : '—'}
                     </td>
                     <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
-                      {row['Fecha de cierre - Diario'] && row['Fecha de cierre - Diario'] !== '(Sin valor)'
-                        ? row['Fecha de cierre - Diario'] : '—'}
+                      {row['Fecha de cierre'] && row['Fecha de cierre'] !== '(Sin valor)'
+                        ? row['Fecha de cierre'] : '—'}
                     </td>
                   </tr>
                 )
