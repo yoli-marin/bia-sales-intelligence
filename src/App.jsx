@@ -1,0 +1,620 @@
+import { useState, useEffect, useMemo } from 'react'
+import Papa from 'papaparse'
+import {
+  Zap, TrendingUp, Building2, CheckCircle2, Search,
+  Filter, ChevronUp, ChevronDown, BarChart3, X, RefreshCw, Trophy
+} from 'lucide-react'
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+const parseNum = (v) => {
+  if (!v || v === '(Sin valor)') return 0
+  return parseFloat(String(v).replace(/,/g, '')) || 0
+}
+
+const fmtKwh = (n) => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)} GWh`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)} MWh`
+  return `${n.toFixed(0)} kWh`
+}
+
+const fmtNum = (n) => new Intl.NumberFormat('es-CO').format(Math.round(n))
+
+const isMR = (d) => d['Tipo de mercado'] === 'Regulado'
+
+const ETAPA_COLOR = {
+  'Reunión agendada': 'bg-slate-700 text-slate-200',
+  'Análisis comercial': 'bg-yellow-900/60 text-yellow-300',
+  'Carta de intención': 'bg-orange-900/60 text-orange-300',
+  'Reunión efectiva': 'bg-blue-900/60 text-blue-300',
+  'Documentos para firma': 'bg-purple-900/60 text-purple-300',
+  'Documentos firmados': 'bg-green-900/60 text-green-300',
+  'Fronteras cargadas': 'bg-teal-900/60 text-teal-300',
+}
+
+const etapaBase = (etapa) => {
+  if (!etapa) return ''
+  const m = etapa.match(/^([^(]+)/)
+  return m ? m[1].trim() : etapa
+}
+
+const etapaBadgeClass = (etapa) => {
+  const base = etapaBase(etapa)
+  return ETAPA_COLOR[base] || 'bg-slate-700 text-slate-300'
+}
+
+const PROB_ORDER = { Alto: 3, Medio: 2, Bajo: 1 }
+
+// ─── sub-components ──────────────────────────────────────────────────────────
+
+function KpiCard({ icon: Icon, label, value, sub, color, accent }) {
+  return (
+    <div className={`rounded-2xl p-5 flex flex-col gap-3 border ${color}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-widest opacity-60">{label}</span>
+        <Icon size={18} className={accent} />
+      </div>
+      <p className={`text-3xl font-bold leading-none ${accent}`}>{value}</p>
+      {sub && <p className="text-xs opacity-50">{sub}</p>}
+    </div>
+  )
+}
+
+function Badge({ text, className }) {
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${className}`}>
+      {text}
+    </span>
+  )
+}
+
+function SortIcon({ col, sortCol, sortDir }) {
+  if (sortCol !== col) return <ChevronUp size={12} className="opacity-20" />
+  return sortDir === 'asc'
+    ? <ChevronUp size={12} className="text-blue-400" />
+    : <ChevronDown size={12} className="text-blue-400" />
+}
+
+function TabBtn({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition-all ${
+        active
+          ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40'
+          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+// ─── WON TABLE ───────────────────────────────────────────────────────────────
+function WonTable({ mrData, mnrData }) {
+  const allWon = useMemo(() => [
+    ...mrData.map((r) => ({ ...r, _src: 'MR' })),
+    ...mnrData.map((r) => ({ ...r, _src: 'MNR' })),
+  ], [mrData, mnrData])
+
+  const [search, setSearch] = useState('')
+  const [filterMercado, setFilterMercado] = useState('Todos')
+  const [sortCol, setSortCol] = useState('Consumo mensual')
+  const [sortDir, setSortDir] = useState('desc')
+
+  const propietarios = useMemo(() =>
+    ['Todos', ...new Set(allWon.map((d) => d['Propietario del negocio']).filter(Boolean))].sort(),
+    [allWon])
+  const [filterPropietario, setFilterPropietario] = useState('Todos')
+
+  const totalMrKwh = useMemo(() => mrData.reduce((s, d) => s + parseNum(d['Consumo mensual']), 0), [mrData])
+  const totalMnrKwh = useMemo(() => mnrData.reduce((s, d) => s + parseNum(d['Consumo mensual']), 0), [mnrData])
+  const totalKwh = totalMrKwh + totalMnrKwh
+
+  const filtered = useMemo(() => {
+    let rows = allWon
+    if (filterMercado !== 'Todos') rows = rows.filter((d) => d['Tipo de mercado'] === filterMercado)
+    if (filterPropietario !== 'Todos') rows = rows.filter((d) => d['Propietario del negocio'] === filterPropietario)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      rows = rows.filter((d) =>
+        d['Nombre del negocio']?.toLowerCase().includes(q) ||
+        d['Propietario del negocio']?.toLowerCase().includes(q)
+      )
+    }
+    rows = [...rows].sort((a, b) => {
+      if (sortCol === 'Consumo mensual') {
+        const av = parseNum(a[sortCol]); const bv = parseNum(b[sortCol])
+        return sortDir === 'asc' ? av - bv : bv - av
+      }
+      const av = (a[sortCol] || '').toLowerCase(); const bv = (b[sortCol] || '').toLowerCase()
+      return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
+    })
+    return rows
+  }, [allWon, filterMercado, filterPropietario, search, sortCol, sortDir])
+
+  const toggleSort = (col) => {
+    if (sortCol === col) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortCol(col); setSortDir('desc') }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* KPIs Ganados */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KpiCard icon={Trophy} label="Total Ganados" value={mrData.length + mnrData.length}
+          sub="negocios este mes" color="border-yellow-700/30 bg-yellow-900/10" accent="text-yellow-400" />
+        <KpiCard icon={Zap} label="kWh Ganados Total" value={fmtKwh(totalKwh)}
+          sub={`${fmtNum(totalKwh)} kWh/mes`} color="border-blue-800/40 bg-blue-950/30" accent="text-blue-400" />
+        <KpiCard icon={Building2} label="MR Ganados" value={mrData.length}
+          sub={fmtKwh(totalMrKwh)} color="border-blue-700/30 bg-blue-900/20" accent="text-blue-300" />
+        <KpiCard icon={Building2} label="MNR Ganados" value={mnrData.length}
+          sub={fmtKwh(totalMnrKwh)} color="border-emerald-700/30 bg-emerald-900/20" accent="text-emerald-400" />
+      </div>
+
+      {/* Barra visual */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+        <p className="text-xs text-slate-400 mb-3 uppercase tracking-widest font-semibold">Distribución kWh ganados</p>
+        <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
+          <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-l-full transition-all"
+            style={{ width: `${totalKwh ? (totalMrKwh / totalKwh) * 100 : 50}%` }} />
+          <div className="bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-r-full transition-all"
+            style={{ width: `${totalKwh ? (totalMnrKwh / totalKwh) * 100 : 50}%` }} />
+        </div>
+        <div className="flex gap-6 mt-2">
+          <span className="text-xs text-blue-400">■ MR {totalKwh ? ((totalMrKwh / totalKwh) * 100).toFixed(1) : 0}%</span>
+          <span className="text-xs text-emerald-400">■ MNR {totalKwh ? ((totalMnrKwh / totalKwh) * 100).toFixed(1) : 0}%</span>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input type="text" placeholder="Buscar…" value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+        </div>
+        <select value={filterMercado} onChange={(e) => setFilterMercado(e.target.value)}
+          className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+          <option>Todos</option>
+          <option value="Regulado">Regulado (MR)</option>
+          <option value="No regulado">No Regulado (MNR)</option>
+        </select>
+        <select value={filterPropietario} onChange={(e) => setFilterPropietario(e.target.value)}
+          className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500 max-w-[200px]">
+          {propietarios.map((p) => <option key={p}>{p}</option>)}
+        </select>
+        <span className="text-xs text-slate-500 ml-auto">{filtered.length} negocios</span>
+      </div>
+
+      {/* Tabla */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-800 bg-slate-900/60">
+                {[
+                  { col: 'Nombre del negocio', label: 'Negocio' },
+                  { col: 'Tipo de mercado', label: 'Mercado' },
+                  { col: 'Etapa del negocio', label: 'Etapa' },
+                  { col: 'Consumo mensual', label: 'kWh/mes' },
+                  { col: 'Propietario del negocio', label: 'Propietario' },
+                  { col: 'Autopista', label: 'Autopista' },
+                  { col: 'Fecha de cierre', label: 'Fecha cierre' },
+                ].map(({ col, label }) => (
+                  <th key={col}
+                    className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap"
+                    onClick={() => toggleSort(col)}>
+                    <span className="flex items-center gap-1">
+                      {label} <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((row, i) => {
+                const mr = isMR(row)
+                const kwh = parseNum(row['Consumo mensual'])
+                return (
+                  <tr key={row['Record ID'] || i}
+                    className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors">
+                    <td className="px-4 py-3 font-medium text-slate-100 max-w-[240px]">
+                      <span className="block truncate" title={row['Nombre del negocio']}>
+                        {row['Nombre del negocio'] || '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {mr
+                        ? <Badge text="MR" className="bg-blue-900/60 text-blue-300 border border-blue-700/30" />
+                        : <Badge text="MNR" className="bg-emerald-900/60 text-emerald-300 border border-emerald-700/30" />}
+                    </td>
+                    <td className="px-4 py-3">
+                      {row['Etapa del negocio']
+                        ? <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${etapaBadgeClass(row['Etapa del negocio'])}`}>
+                            {etapaBase(row['Etapa del negocio'])}
+                          </span>
+                        : <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap font-mono text-sm">
+                      {kwh > 0
+                        ? <span className={mr ? 'text-blue-300' : 'text-emerald-300'}>{fmtNum(kwh)}</span>
+                        : <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-slate-300 whitespace-nowrap text-xs">
+                      {row['Propietario del negocio'] || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                      {row['Autopista'] || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                      {row['Fecha de cierre']
+                        ? row['Fecha de cierre'].slice(0, 10)
+                        : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                    No se encontraron negocios con los filtros actuales.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── PIPELINE TABLE ───────────────────────────────────────────────────────────
+function PipelineView({ data }) {
+  const [search, setSearch] = useState('')
+  const [filterMercado, setFilterMercado] = useState('Todos')
+  const [filterEtapa, setFilterEtapa] = useState('Todas')
+  const [filterPropietario, setFilterPropietario] = useState('Todos')
+  const [filterProb, setFilterProb] = useState('Todas')
+  const [sortCol, setSortCol] = useState('Consumo mensual')
+  const [sortDir, setSortDir] = useState('desc')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 20
+
+  const kpis = useMemo(() => {
+    if (!data.length) return {}
+    const mrData = data.filter(isMR)
+    const mnrData = data.filter((d) => !isMR(d))
+    const totalKwh = data.reduce((s, d) => s + parseNum(d['Consumo mensual']), 0)
+    const mrKwh = mrData.reduce((s, d) => s + parseNum(d['Consumo mensual']), 0)
+    const mnrKwh = mnrData.reduce((s, d) => s + parseNum(d['Consumo mensual']), 0)
+    const altaMed = data.filter((d) =>
+      d['Probabilidad de Cierre'] === 'Alto' || d['Probabilidad de Cierre'] === 'Medio'
+    )
+    const altaMedKwh = altaMed.reduce((s, d) => s + parseNum(d['Consumo mensual']), 0)
+    const docsF = data.filter((d) => d['Etapa del negocio']?.toLowerCase().includes('documentos firmados')).length
+    return { total: data.length, mrData: mrData.length, mnrData: mnrData.length, totalKwh, mrKwh, mnrKwh, altaMed: altaMed.length, altaMedKwh, docsF }
+  }, [data])
+
+  const etapas = useMemo(() => ['Todas', ...new Set(data.map((d) => d['Etapa del negocio']).filter(Boolean))], [data])
+  const propietarios = useMemo(() => ['Todos', ...new Set(data.map((d) => d['Propietario del negocio']).filter(Boolean))].sort(), [data])
+
+  const filtered = useMemo(() => {
+    let rows = data
+    if (filterMercado !== 'Todos') rows = rows.filter((d) => d['Tipo de mercado'] === filterMercado)
+    if (filterEtapa !== 'Todas') rows = rows.filter((d) => d['Etapa del negocio'] === filterEtapa)
+    if (filterPropietario !== 'Todos') rows = rows.filter((d) => d['Propietario del negocio'] === filterPropietario)
+    if (filterProb !== 'Todas') rows = rows.filter((d) => d['Probabilidad de Cierre'] === filterProb)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      rows = rows.filter((d) =>
+        d['Nombre del negocio']?.toLowerCase().includes(q) ||
+        d['Propietario del negocio']?.toLowerCase().includes(q)
+      )
+    }
+    rows = [...rows].sort((a, b) => {
+      if (sortCol === 'Consumo mensual') {
+        return sortDir === 'asc' ? parseNum(a[sortCol]) - parseNum(b[sortCol]) : parseNum(b[sortCol]) - parseNum(a[sortCol])
+      }
+      if (sortCol === 'Probabilidad de Cierre') {
+        const av = PROB_ORDER[a[sortCol]] || 0; const bv = PROB_ORDER[b[sortCol]] || 0
+        return sortDir === 'asc' ? av - bv : bv - av
+      }
+      const av = (a[sortCol] || '').toLowerCase(); const bv = (b[sortCol] || '').toLowerCase()
+      return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
+    })
+    return rows
+  }, [data, filterMercado, filterEtapa, filterPropietario, filterProb, search, sortCol, sortDir])
+
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+
+  const toggleSort = (col) => {
+    if (sortCol === col) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortCol(col); setSortDir('desc') }
+    setPage(1)
+  }
+
+  const hasFilters = search || filterMercado !== 'Todos' || filterEtapa !== 'Todas' || filterPropietario !== 'Todos' || filterProb !== 'Todas'
+
+  return (
+    <div className="space-y-6">
+      {/* KPI GRID */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <KpiCard icon={Zap} label="Total Pipeline kWh" value={fmtKwh(kpis.totalKwh)}
+          sub={`${fmtNum(kpis.totalKwh)} kWh/mes`} color="border-blue-800/40 bg-blue-950/30" accent="text-blue-400" />
+        <KpiCard icon={Building2} label="MR – Regulado" value={fmtKwh(kpis.mrKwh)}
+          sub={`${kpis.mrData} negocios`} color="border-blue-700/30 bg-blue-900/20" accent="text-blue-300" />
+        <KpiCard icon={Building2} label="MNR – No Regulado" value={fmtKwh(kpis.mnrKwh)}
+          sub={`${kpis.mnrData} negocios`} color="border-emerald-700/30 bg-emerald-900/20" accent="text-emerald-400" />
+        <KpiCard icon={CheckCircle2} label="Docs Firmados" value={kpis.docsF}
+          sub="etapa más avanzada" color="border-green-700/30 bg-green-900/20" accent="text-green-400" />
+        <KpiCard icon={TrendingUp} label="Prob. Alta + Media" value={kpis.altaMed}
+          sub={fmtKwh(kpis.altaMedKwh)} color="border-purple-700/30 bg-purple-900/20" accent="text-purple-400" />
+        <KpiCard icon={Zap} label="Total Negocios" value={kpis.total}
+          sub={`MR ${kpis.mrData} · MNR ${kpis.mnrData}`} color="border-slate-700/40 bg-slate-800/30" accent="text-slate-300" />
+      </div>
+
+      {/* Barras MR / MNR */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-blue-800/30 bg-blue-950/20 p-5">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-xs font-semibold text-blue-300 uppercase tracking-widest">Mercado Regulado (MR)</span>
+            <span className="text-lg font-bold text-blue-400">{fmtKwh(kpis.mrKwh)}</span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400"
+              style={{ width: `${kpis.totalKwh ? (kpis.mrKwh / kpis.totalKwh) * 100 : 0}%` }} />
+          </div>
+          <p className="text-xs text-slate-500 mt-2">
+            {kpis.totalKwh ? ((kpis.mrKwh / kpis.totalKwh) * 100).toFixed(1) : 0}% del pipeline · {kpis.mrData} negocios
+          </p>
+        </div>
+        <div className="rounded-2xl border border-emerald-800/30 bg-emerald-950/20 p-5">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-xs font-semibold text-emerald-300 uppercase tracking-widest">Mercado No Regulado (MNR)</span>
+            <span className="text-lg font-bold text-emerald-400">{fmtKwh(kpis.mnrKwh)}</span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400"
+              style={{ width: `${kpis.totalKwh ? (kpis.mnrKwh / kpis.totalKwh) * 100 : 0}%` }} />
+          </div>
+          <p className="text-xs text-slate-500 mt-2">
+            {kpis.totalKwh ? ((kpis.mnrKwh / kpis.totalKwh) * 100).toFixed(1) : 0}% del pipeline · {kpis.mnrData} negocios
+          </p>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Filter size={14} className="text-slate-400" />
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Filtros</span>
+          {hasFilters && (
+            <button onClick={() => { setSearch(''); setFilterMercado('Todos'); setFilterEtapa('Todas'); setFilterPropietario('Todos'); setFilterProb('Todas'); setPage(1) }}
+              className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-red-400 transition-colors">
+              <X size={12} /> Limpiar
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input type="text" placeholder="Buscar negocio o propietario…" value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+          </div>
+          <select value={filterMercado} onChange={(e) => { setFilterMercado(e.target.value); setPage(1) }}
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+            <option>Todos</option>
+            <option value="Regulado">Regulado (MR)</option>
+            <option value="No regulado">No Regulado (MNR)</option>
+          </select>
+          <select value={filterProb} onChange={(e) => { setFilterProb(e.target.value); setPage(1) }}
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+            <option value="Todas">Probabilidad</option>
+            <option value="Alto">Alta</option>
+            <option value="Medio">Media</option>
+            <option value="Bajo">Baja</option>
+          </select>
+          <select value={filterEtapa} onChange={(e) => { setFilterEtapa(e.target.value); setPage(1) }}
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500 max-w-[220px]">
+            {etapas.map((e) => <option key={e}>{e}</option>)}
+          </select>
+          <select value={filterPropietario} onChange={(e) => { setFilterPropietario(e.target.value); setPage(1) }}
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500 max-w-[200px]">
+            {propietarios.map((p) => <option key={p}>{p}</option>)}
+          </select>
+        </div>
+        <p className="text-xs text-slate-500">{filtered.length} negocios encontrados</p>
+      </div>
+
+      {/* Tabla */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-800 bg-slate-900/60">
+                {[
+                  { col: 'Nombre del negocio', label: 'Negocio' },
+                  { col: 'Tipo de mercado', label: 'Mercado' },
+                  { col: 'Etapa del negocio', label: 'Etapa' },
+                  { col: 'Probabilidad de Cierre', label: 'Prob.' },
+                  { col: 'Consumo mensual', label: 'kWh/mes' },
+                  { col: 'Propietario del negocio', label: 'Propietario' },
+                  { col: 'Subautopista', label: 'Sub.' },
+                  { col: 'Fecha de cierre - Diario', label: 'Cierre' },
+                ].map(({ col, label }) => (
+                  <th key={col}
+                    className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap"
+                    onClick={() => toggleSort(col)}>
+                    <span className="flex items-center gap-1">
+                      {label} <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.map((row, i) => {
+                const mr = isMR(row)
+                const kwh = parseNum(row['Consumo mensual'])
+                return (
+                  <tr key={row['Negocio ID'] || i}
+                    className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors">
+                    <td className="px-4 py-3 font-medium text-slate-100 max-w-[220px]">
+                      <span className="block truncate" title={row['Nombre del negocio']}>{row['Nombre del negocio'] || '—'}</span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {mr
+                        ? <Badge text="MR" className="bg-blue-900/60 text-blue-300 border border-blue-700/30" />
+                        : <Badge text="MNR" className="bg-emerald-900/60 text-emerald-300 border border-emerald-700/30" />}
+                    </td>
+                    <td className="px-4 py-3 max-w-[180px]">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${etapaBadgeClass(row['Etapa del negocio'])}`}
+                        title={row['Etapa del negocio']}>
+                        {etapaBase(row['Etapa del negocio']) || '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {row['Probabilidad de Cierre'] === 'Alto' && <Badge text="Alta" className="bg-green-900/50 text-green-300" />}
+                      {row['Probabilidad de Cierre'] === 'Medio' && <Badge text="Media" className="bg-yellow-900/50 text-yellow-300" />}
+                      {row['Probabilidad de Cierre'] === 'Bajo' && <Badge text="Baja" className="bg-slate-700/80 text-slate-400" />}
+                      {!['Alto', 'Medio', 'Bajo'].includes(row['Probabilidad de Cierre']) && <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap font-mono text-sm">
+                      {kwh > 0
+                        ? <span className={mr ? 'text-blue-300' : 'text-emerald-300'}>{fmtNum(kwh)}</span>
+                        : <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-slate-300 whitespace-nowrap text-xs">{row['Propietario del negocio'] || '—'}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                      {row['Subautopista'] && row['Subautopista'] !== '(Sin valor)' ? row['Subautopista'] : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                      {row['Fecha de cierre - Diario'] && row['Fecha de cierre - Diario'] !== '(Sin valor)'
+                        ? row['Fecha de cierre - Diario'] : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
+              {paginated.length === 0 && (
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">No se encontraron negocios.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-800 bg-slate-900/40">
+            <p className="text-xs text-slate-500">Página {page} de {totalPages} · {filtered.length} negocios</p>
+            <div className="flex gap-2">
+              <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
+                className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 disabled:opacity-30 hover:bg-slate-700 transition-colors">
+                ← Anterior
+              </button>
+              <button disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}
+                className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 disabled:opacity-30 hover:bg-slate-700 transition-colors">
+                Siguiente →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+export default function App() {
+  const [pipeline, setPipeline] = useState([])
+  const [wonMR, setWonMR] = useState([])
+  const [wonMNR, setWonMNR] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('pipeline')
+
+  useEffect(() => {
+    const loadCsv = (url) =>
+      fetch(url).then((r) => r.text()).then((text) =>
+        Papa.parse(text, { header: true, skipEmptyLines: true }).data
+      )
+
+    Promise.all([
+      loadCsv('/hubspot-export-summary.csv'),
+      loadCsv('/won-mr-este-mes.csv'),
+      loadCsv('/won-mnr-este-mes.csv'),
+    ]).then(([p, mr, mnr]) => {
+      setPipeline(p)
+      setWonMR(mr)
+      setWonMNR(mnr)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [])
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#0a0e1a]">
+      <div className="text-center">
+        <RefreshCw size={32} className="animate-spin text-blue-400 mx-auto mb-3" />
+        <p className="text-slate-400 text-sm">Cargando datos HubSpot…</p>
+      </div>
+    </div>
+  )
+
+  const totalWonKwh = [...wonMR, ...wonMNR].reduce((s, d) => s + parseNum(d['Consumo mensual']), 0)
+
+  return (
+    <div className="min-h-screen bg-[#0a0e1a] text-slate-100">
+      {/* HEADER */}
+      <header className="border-b border-slate-800 bg-[#0d1120] sticky top-0 z-50">
+        <div className="max-w-screen-xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+              <Zap size={16} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold leading-none text-white">Reporte Funnel Comercial · Bia</h1>
+              <p className="text-[10px] text-slate-500 mt-0.5">Sales Intelligence · HubSpot Export</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-6">
+            {/* quick stats en header */}
+            <div className="hidden md:flex items-center gap-4 text-xs text-slate-500">
+              <span><span className="text-yellow-400 font-bold">{wonMR.length + wonMNR.length}</span> ganados · <span className="text-yellow-400 font-bold">{fmtKwh(totalWonKwh)}</span></span>
+              <span className="text-slate-700">|</span>
+              <span>{pipeline.length} en pipeline · {new Date().toLocaleDateString('es-CO', { dateStyle: 'medium' })}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* TABS */}
+        <div className="max-w-screen-xl mx-auto px-6 pb-3 flex gap-2">
+          <TabBtn active={activeTab === 'pipeline'} onClick={() => setActiveTab('pipeline')}>
+            <span className="flex items-center gap-2">
+              <BarChart3 size={14} /> Pipeline ({pipeline.length})
+            </span>
+          </TabBtn>
+          <TabBtn active={activeTab === 'ganados'} onClick={() => setActiveTab('ganados')}>
+            <span className="flex items-center gap-2">
+              <Trophy size={14} />
+              Ganados este mes
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activeTab === 'ganados' ? 'bg-yellow-500 text-yellow-900' : 'bg-yellow-900/60 text-yellow-400'}`}>
+                {wonMR.length + wonMNR.length}
+              </span>
+            </span>
+          </TabBtn>
+        </div>
+      </header>
+
+      <main className="max-w-screen-xl mx-auto px-6 py-8">
+        {activeTab === 'pipeline'
+          ? <PipelineView data={pipeline} />
+          : <WonTable mrData={wonMR} mnrData={wonMNR} />
+        }
+      </main>
+
+      <footer className="border-t border-slate-800 mt-12 py-4 text-center text-xs text-slate-600">
+        Bia Sales Intelligence · Datos HubSpot · {new Date().getFullYear()}
+      </footer>
+    </div>
+  )
+}
