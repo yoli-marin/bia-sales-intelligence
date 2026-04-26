@@ -539,10 +539,11 @@ export default function App() {
         Papa.parse(text, { header: true, skipEmptyLines: true }).data
       )
 
+    const base = import.meta.env.BASE_URL
     Promise.all([
-      loadCsv('/hubspot-export-summary.csv'),
-      loadCsv('/won-mr-este-mes.csv'),
-      loadCsv('/won-mnr-este-mes.csv'),
+      loadCsv(`${base}hubspot-export-summary.csv`),
+      loadCsv(`${base}won-mr-este-mes.csv`),
+      loadCsv(`${base}won-mnr-este-mes.csv`),
     ]).then(([p, mr, mnr]) => {
       setPipeline(p)
       setWonMR(mr)
