@@ -557,6 +557,33 @@ function RankingBar({ value, max, color }) {
 }
 
 // ─── POR KAM ──────────────────────────────────────────────────────────────────
+const KAMS_CON_META = new Set([
+  'Sebastian Mazorra Gomez',
+  'Andrés Toro García',
+  'Daniela Dueñas Camacho',
+  'Juan Pablo Blanco Lugo',
+  'Alejandro Sánchez Jiménez',
+  'Miguel Charry Sierra',
+])
+const META_PUNTOS = 14
+
+function puntosNegocio(kwh) {
+  if (kwh > 450000) return 12
+  if (kwh >= 100000) return 6
+  if (kwh >= 40000)  return 3
+  if (kwh >= 10000)  return 2
+  if (kwh > 0)       return 1
+  return 0
+}
+
+function ptosBadge(p) {
+  if (p === 12) return 'bg-purple-900/70 text-purple-300 border border-purple-700/40'
+  if (p === 6)  return 'bg-blue-900/70 text-blue-300 border border-blue-700/40'
+  if (p === 3)  return 'bg-teal-900/70 text-teal-300 border border-teal-700/40'
+  if (p === 2)  return 'bg-yellow-900/70 text-yellow-300 border border-yellow-700/40'
+  return 'bg-slate-700/70 text-slate-400 border border-slate-600/40'
+}
+
 function KamView({ mrData, mnrData }) {
   const allWon = useMemo(() => [...mrData, ...mnrData], [mrData, mnrData])
   const rows = useMemo(() => groupBy(allWon, 'Propietario del negocio'), [allWon])
@@ -564,23 +591,170 @@ function KamView({ mrData, mnrData }) {
   const totalNegocios = allWon.length
   const totalKwh = allWon.reduce((s, d) => s + parseNum(d['Consumo mensual']), 0)
 
+  // Performance por KAM con meta
+  const performance = useMemo(() => {
+    const map = {}
+    allWon.forEach((r) => {
+      const kam = r['Propietario del negocio']
+      if (!KAMS_CON_META.has(kam)) return
+      if (!map[kam]) map[kam] = { puntos: 0, deals: [] }
+      const kwh = parseNum(r['Consumo mensual'])
+      const p = puntosNegocio(kwh)
+      map[kam].puntos += p
+      map[kam].deals.push({ nombre: r['Nombre del negocio'], kwh, puntos: p })
+    })
+    return Object.entries(map)
+      .map(([kam, d]) => ({ kam, ...d }))
+      .sort((a, b) => b.puntos - a.puntos)
+  }, [allWon])
+
+  const cumple = performance.filter((k) => k.puntos >= META_PUNTOS).length
+  const [expandedKam, setExpandedKam] = useState(null)
+
   return (
     <div className="space-y-6">
       {/* KPIs resumen */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard icon={Users} label="KAMs activos" value={rows.length}
-          sub="con al menos 1 negocio ganado" color="border-blue-800/40 bg-blue-950/30" accent="text-blue-400" />
+          sub="con negocios ganados" color="border-blue-800/40 bg-blue-950/30" accent="text-blue-400" />
         <KpiCard icon={Trophy} label="Total ganados" value={totalNegocios}
           sub="negocios este mes" color="border-yellow-700/30 bg-yellow-900/10" accent="text-yellow-400" />
+        <KpiCard icon={CheckCircle2} label="KAMs que cumplen" value={`${cumple}/${performance.length}`}
+          sub={`meta: ${META_PUNTOS} puntos`} color="border-green-700/30 bg-green-900/20" accent="text-green-400" />
         <KpiCard icon={Zap} label="kWh total ganado" value={fmtKwh(totalKwh)}
           sub={`${fmtNum(totalKwh)} kWh/mes`} color="border-purple-700/30 bg-purple-900/20" accent="text-purple-400" />
       </div>
 
-      {/* Tabla ranking */}
+      {/* ── PERFORMANCE CON META ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp size={14} className="text-slate-400" />
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Performance · Meta {META_PUNTOS} puntos</span>
+          <span className="ml-2 text-[10px] text-slate-500">Click en un KAM para ver el detalle de negocios</span>
+        </div>
+
+        {/* Tabla de puntos */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden mb-3">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-800 bg-slate-900/60">
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">#</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">KAM</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Negocios</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Puntos</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Progreso a meta</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {performance.map((k, i) => {
+                  const pct = Math.min((k.puntos / META_PUNTOS) * 100, 100)
+                  const cumpleK = k.puntos >= META_PUNTOS
+                  const isOpen = expandedKam === k.kam
+                  return (
+                    <>
+                      <tr key={k.kam}
+                        className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors cursor-pointer"
+                        onClick={() => setExpandedKam(isOpen ? null : k.kam)}>
+                        <td className="px-5 py-4 text-slate-500 font-mono text-xs">{i + 1}</td>
+                        <td className="px-5 py-4 font-semibold text-white">
+                          <span className="flex items-center gap-2">
+                            {k.kam}
+                            <ChevronDown size={12} className={`text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-center text-slate-300">{k.deals.length}</td>
+                        <td className="px-5 py-4 text-center">
+                          <span className={`text-lg font-bold ${cumpleK ? 'text-green-400' : 'text-yellow-400'}`}>
+                            {k.puntos}
+                          </span>
+                          <span className="text-slate-600 text-xs">/{META_PUNTOS}</span>
+                        </td>
+                        <td className="px-5 py-4 min-w-[200px]">
+                          <div className="space-y-1">
+                            <div className="h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${cumpleK ? 'bg-gradient-to-r from-green-600 to-green-400' : 'bg-gradient-to-r from-yellow-700 to-yellow-500'}`}
+                                style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-[10px] text-slate-500">
+                              {cumpleK ? `+${k.puntos - META_PUNTOS} sobre meta` : `Faltan ${META_PUNTOS - k.puntos} pts`}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-center">
+                          {cumpleK
+                            ? <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-900/50 text-green-400 text-xs font-bold border border-green-700/40">✅ Cumple</span>
+                            : <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-900/40 text-red-400 text-xs font-bold border border-red-700/40">❌ En proceso</span>
+                          }
+                        </td>
+                      </tr>
+                      {/* Detalle de negocios expandible */}
+                      {isOpen && (
+                        <tr key={`${k.kam}-detail`} className="border-b border-slate-800">
+                          <td colSpan={6} className="px-5 pb-4 pt-0 bg-slate-900/60">
+                            <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="bg-slate-800/60 border-b border-slate-700/50">
+                                    <th className="px-4 py-2 text-left text-slate-400 font-semibold">Negocio</th>
+                                    <th className="px-4 py-2 text-right text-slate-400 font-semibold">kWh/mes</th>
+                                    <th className="px-4 py-2 text-center text-slate-400 font-semibold">Puntos</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {k.deals.sort((a, b) => b.puntos - a.puntos).map((d, di) => (
+                                    <tr key={di} className="border-b border-slate-800/40 hover:bg-slate-800/20">
+                                      <td className="px-4 py-2 text-slate-200">{d.nombre}</td>
+                                      <td className="px-4 py-2 text-right font-mono text-blue-300">{fmtNum(d.kwh)}</td>
+                                      <td className="px-4 py-2 text-center">
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${ptosBadge(d.puntos)}`}>
+                                          {d.puntos} {d.puntos === 1 ? 'pt' : 'pts'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                  <tr className="bg-slate-800/40">
+                                    <td className="px-4 py-2 font-bold text-white">Total</td>
+                                    <td className="px-4 py-2 text-right font-mono text-white font-bold">{fmtNum(k.deals.reduce((s, d) => s + d.kwh, 0))}</td>
+                                    <td className="px-4 py-2 text-center font-bold text-white">{k.puntos} pts</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Leyenda de puntos */}
+        <div className="flex flex-wrap gap-2">
+          <span className="text-[10px] text-slate-500 mr-1 self-center">Tabla de puntos:</span>
+          {[
+            { label: '>450k kWh', pts: 12, cls: 'bg-purple-900/70 text-purple-300 border-purple-700/40' },
+            { label: '100k–449k kWh', pts: 6, cls: 'bg-blue-900/70 text-blue-300 border-blue-700/40' },
+            { label: '40k–99k kWh', pts: 3, cls: 'bg-teal-900/70 text-teal-300 border-teal-700/40' },
+            { label: '10k–39k kWh', pts: 2, cls: 'bg-yellow-900/70 text-yellow-300 border-yellow-700/40' },
+            { label: '0–9k kWh', pts: 1, cls: 'bg-slate-700/70 text-slate-400 border-slate-600/40' },
+          ].map(({ label, pts, cls }) => (
+            <span key={pts} className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border ${cls}`}>
+              {label} → {pts} {pts === 1 ? 'pt' : 'pts'}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── RANKING GENERAL (todos los KAMs) ── */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-2">
           <Users size={14} className="text-slate-400" />
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Ranking por KAM</span>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Ranking general por kWh · todos los KAMs</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -592,8 +766,6 @@ function KamView({ mrData, mnrData }) {
                 <th className="px-5 py-3 text-center text-xs font-semibold text-blue-400 uppercase tracking-wider">MR</th>
                 <th className="px-5 py-3 text-center text-xs font-semibold text-emerald-400 uppercase tracking-wider">MNR</th>
                 <th className="px-5 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">kWh Total</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-blue-400 uppercase tracking-wider">kWh MR</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-emerald-400 uppercase tracking-wider">kWh MNR</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">% del total</th>
               </tr>
             </thead>
@@ -601,19 +773,14 @@ function KamView({ mrData, mnrData }) {
               {rows.map((r, i) => (
                 <tr key={r.name} className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors">
                   <td className="px-5 py-3 text-slate-500 font-mono text-xs">{i + 1}</td>
-                  <td className="px-5 py-3 font-semibold text-slate-100">{r.name}</td>
-                  <td className="px-5 py-3 text-center">
-                    <span className="text-white font-bold">{r.total}</span>
+                  <td className="px-5 py-3 font-semibold text-slate-100">
+                    {r.name}
+                    {KAMS_CON_META.has(r.name) && <span className="ml-2 text-[10px] text-slate-500">· con meta</span>}
                   </td>
-                  <td className="px-5 py-3 text-center">
-                    {r.mrCount > 0 ? <span className="text-blue-300 font-medium">{r.mrCount}</span> : <span className="text-slate-700">—</span>}
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    {r.mnrCount > 0 ? <span className="text-emerald-300 font-medium">{r.mnrCount}</span> : <span className="text-slate-700">—</span>}
-                  </td>
+                  <td className="px-5 py-3 text-center font-bold text-white">{r.total}</td>
+                  <td className="px-5 py-3 text-center text-blue-300">{r.mrCount || '—'}</td>
+                  <td className="px-5 py-3 text-center text-emerald-300">{r.mnrCount || '—'}</td>
                   <td className="px-5 py-3 text-right font-mono font-bold text-white">{fmtKwh(r.totalKwh)}</td>
-                  <td className="px-5 py-3 text-right font-mono text-blue-300 text-xs">{r.mrKwh > 0 ? fmtNum(r.mrKwh) : '—'}</td>
-                  <td className="px-5 py-3 text-right font-mono text-emerald-300 text-xs">{r.mnrKwh > 0 ? fmtNum(r.mnrKwh) : '—'}</td>
                   <td className="px-5 py-3 w-32">
                     <div className="space-y-1">
                       <RankingBar value={r.totalKwh} max={maxKwh} color="bg-gradient-to-r from-blue-600 to-purple-500" />
