@@ -567,7 +567,13 @@ const KAMS_CON_META = new Set([
 ])
 const META_PUNTOS = 14
 
-function puntosNegocio(kwh) {
+// Excepciones manuales: { nombre_negocio: puntos }
+const EXCEPCIONES_PUNTOS = {
+  'ARCOS DORADOS COLOMBIA S A S': 10,
+}
+
+function puntosNegocio(kwh, nombre = '') {
+  if (EXCEPCIONES_PUNTOS[nombre?.trim()]) return EXCEPCIONES_PUNTOS[nombre.trim()]
   if (kwh > 450000) return 12
   if (kwh >= 100000) return 6
   if (kwh >= 40000)  return 3
@@ -599,9 +605,9 @@ function KamView({ mrData, mnrData }) {
       if (!KAMS_CON_META.has(kam)) return
       if (!map[kam]) map[kam] = { puntos: 0, deals: [] }
       const kwh = parseNum(r['Consumo mensual'])
-      const p = puntosNegocio(kwh)
+      const p = puntosNegocio(kwh, r['Nombre del negocio'])
       map[kam].puntos += p
-      map[kam].deals.push({ nombre: r['Nombre del negocio'], kwh, puntos: p })
+      map[kam].deals.push({ nombre: r['Nombre del negocio'], kwh, puntos: p, excepcion: !!EXCEPCIONES_PUNTOS[r['Nombre del negocio']?.trim()] })
     })
     return Object.entries(map)
       .map(([kam, d]) => ({ kam, ...d }))
@@ -705,7 +711,10 @@ function KamView({ mrData, mnrData }) {
                                 <tbody>
                                   {k.deals.sort((a, b) => b.puntos - a.puntos).map((d, di) => (
                                     <tr key={di} className="border-b border-slate-800/40 hover:bg-slate-800/20">
-                                      <td className="px-4 py-2 text-slate-200">{d.nombre}</td>
+                                      <td className="px-4 py-2 text-slate-200">
+                                        {d.nombre}
+                                        {d.excepcion && <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">excepción</span>}
+                                      </td>
                                       <td className="px-4 py-2 text-right font-mono text-blue-300">{fmtNum(d.kwh)}</td>
                                       <td className="px-4 py-2 text-center">
                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${ptosBadge(d.puntos)}`}>
