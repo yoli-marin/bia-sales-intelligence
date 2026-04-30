@@ -631,6 +631,21 @@ function KamView({ mrData, mnrData }) {
 }
 
 // ─── POR AUTOPISTA ────────────────────────────────────────────────────────────
+function groupSubautopista(rows, autopista) {
+  const filtered = rows.filter((r) => (r['Autopista'] || '') === autopista)
+  const map = {}
+  filtered.forEach((r) => {
+    const sub = r['Subautopista'] || r['subautopista'] || '(Sin sub)'
+    const k = sub.trim() || '(Sin sub)'
+    if (!map[k]) map[k] = { count: 0, kwh: 0 }
+    map[k].count++
+    map[k].kwh += parseNum(r['Consumo mensual'])
+  })
+  return Object.entries(map)
+    .map(([name, { count, kwh }]) => ({ name, count, kwh }))
+    .sort((a, b) => b.kwh - a.kwh)
+}
+
 function AutopistaView({ mrData, mnrData }) {
   const allWon = useMemo(() => [...mrData, ...mnrData], [mrData, mnrData])
   const rows = useMemo(() => groupBy(allWon, 'Autopista'), [allWon])
@@ -639,16 +654,16 @@ function AutopistaView({ mrData, mnrData }) {
   const totalKwh = allWon.reduce((s, d) => s + parseNum(d['Consumo mensual']), 0)
 
   const AUTOPISTA_COLOR = {
-    Especiales: 'bg-blue-500',
-    Inbound: 'bg-emerald-500',
-    Outbound: 'bg-purple-500',
-    Partnerships: 'bg-orange-500',
-    D2D: 'bg-yellow-500',
+    Especiales: { bg: 'bg-blue-500', border: 'border-blue-700/40', card: 'bg-blue-950/20', text: 'text-blue-400', bar: 'bg-gradient-to-r from-blue-700 to-blue-400' },
+    Inbound:    { bg: 'bg-emerald-500', border: 'border-emerald-700/40', card: 'bg-emerald-950/20', text: 'text-emerald-400', bar: 'bg-gradient-to-r from-emerald-700 to-emerald-400' },
+    Outbound:   { bg: 'bg-purple-500', border: 'border-purple-700/40', card: 'bg-purple-950/20', text: 'text-purple-400', bar: 'bg-gradient-to-r from-purple-700 to-purple-400' },
+    Partnerships: { bg: 'bg-orange-500', border: 'border-orange-700/40', card: 'bg-orange-950/20', text: 'text-orange-400', bar: 'bg-gradient-to-r from-orange-700 to-orange-400' },
   }
+  const DEFAULT_COLOR = { bg: 'bg-slate-500', border: 'border-slate-700/40', card: 'bg-slate-800/30', text: 'text-slate-400', bar: 'bg-slate-500' }
 
   return (
     <div className="space-y-6">
-      {/* KPIs resumen */}
+      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <KpiCard icon={Route} label="Autopistas activas" value={rows.length}
           sub="con al menos 1 negocio ganado" color="border-blue-800/40 bg-blue-950/30" accent="text-blue-400" />
@@ -658,85 +673,113 @@ function AutopistaView({ mrData, mnrData }) {
           sub={`${fmtNum(totalKwh)} kWh/mes`} color="border-purple-700/30 bg-purple-900/20" accent="text-purple-400" />
       </div>
 
-      {/* Tarjetas por autopista */}
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {/* Tarjetas por autopista con sub-autopistas */}
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
         {rows.map((r) => {
-          const barColor = AUTOPISTA_COLOR[r.name] || 'bg-slate-500'
+          const c = AUTOPISTA_COLOR[r.name] || DEFAULT_COLOR
+          const subs = groupSubautopista(allWon, r.name)
+          const maxSubKwh = subs[0]?.kwh || 1
           return (
-            <div key={r.name} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
+            <div key={r.name} className={`rounded-2xl border ${c.border} ${c.card} p-5 space-y-4`}>
+              {/* header */}
               <div className="flex items-center justify-between">
                 <span className="font-bold text-white text-base">{r.name}</span>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-bold text-white ${barColor}`}>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold text-white ${c.bg}`}>
                   {r.total} {r.total === 1 ? 'negocio' : 'negocios'}
                 </span>
               </div>
+
               {/* barra kWh total */}
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs text-slate-500">kWh total</span>
-                  <span className="text-sm font-bold text-white">{fmtKwh(r.totalKwh)}</span>
+                  <span className={`text-sm font-bold ${c.text}`}>{fmtKwh(r.totalKwh)}</span>
                 </div>
                 <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
-                  <div className={`h-full rounded-full ${barColor}`} style={{ width: `${(r.totalKwh / maxKwh) * 100}%` }} />
+                  <div className={`h-full rounded-full ${c.bar}`} style={{ width: `${(r.totalKwh / maxKwh) * 100}%` }} />
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1">{totalKwh ? ((r.totalKwh / totalKwh) * 100).toFixed(1) : 0}% del total ganado</p>
+                <p className="text-[10px] text-slate-500 mt-1">{totalKwh ? ((r.totalKwh / totalKwh) * 100).toFixed(1) : 0}% del total</p>
               </div>
+
               {/* split MR / MNR */}
-              <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-800">
+              <div className="grid grid-cols-2 gap-3 pb-3 border-b border-slate-800/60">
                 <div>
                   <p className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider mb-1">MR</p>
-                  <p className="text-sm font-bold text-blue-300">{r.mrCount} neg.</p>
-                  <p className="text-xs text-slate-500">{fmtKwh(r.mrKwh)}</p>
+                  <p className="text-sm font-bold text-blue-300">{r.mrCount} neg. · {fmtKwh(r.mrKwh)}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider mb-1">MNR</p>
-                  <p className="text-sm font-bold text-emerald-300">{r.mnrCount} neg.</p>
-                  <p className="text-xs text-slate-500">{fmtKwh(r.mnrKwh)}</p>
+                  <p className="text-sm font-bold text-emerald-300">{r.mnrCount} neg. · {fmtKwh(r.mnrKwh)}</p>
                 </div>
               </div>
+
+              {/* Sub-autopistas */}
+              {subs.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Sub-autopistas</p>
+                  {subs.map((s) => (
+                    <div key={s.name} className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-slate-300">{s.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-slate-500">{s.count} neg.</span>
+                          <span className={`text-xs font-semibold ${c.text}`}>{fmtKwh(s.kwh)}</span>
+                        </div>
+                      </div>
+                      <div className="h-1 rounded-full bg-slate-800 overflow-hidden">
+                        <div className={`h-full rounded-full ${c.bar} opacity-70`}
+                          style={{ width: `${(s.kwh / maxSubKwh) * 100}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )
         })}
       </div>
 
-      {/* Tabla detalle */}
+      {/* Tabla resumen */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-2">
           <Route size={14} className="text-slate-400" />
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Detalle por autopista</span>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Resumen por autopista · sub-autopista</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-800 bg-slate-900/60">
                 <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Autopista</th>
-                <th className="px-5 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Neg.</th>
-                <th className="px-5 py-3 text-center text-xs font-semibold text-blue-400 uppercase tracking-wider">MR Neg.</th>
-                <th className="px-5 py-3 text-center text-xs font-semibold text-emerald-400 uppercase tracking-wider">MNR Neg.</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">kWh Total</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-blue-400 uppercase tracking-wider">kWh MR</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-emerald-400 uppercase tracking-wider">kWh MNR</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">Participación</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Sub-autopista</th>
+                <th className="px-5 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Negocios</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">kWh</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-28">Participación</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.name} className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors">
-                  <td className="px-5 py-3 font-semibold text-white">{r.name}</td>
-                  <td className="px-5 py-3 text-center font-bold text-white">{r.total}</td>
-                  <td className="px-5 py-3 text-center text-blue-300">{r.mrCount || '—'}</td>
-                  <td className="px-5 py-3 text-center text-emerald-300">{r.mnrCount || '—'}</td>
-                  <td className="px-5 py-3 text-right font-mono font-bold text-white">{fmtKwh(r.totalKwh)}</td>
-                  <td className="px-5 py-3 text-right font-mono text-blue-300 text-xs">{r.mrKwh > 0 ? fmtNum(r.mrKwh) : '—'}</td>
-                  <td className="px-5 py-3 text-right font-mono text-emerald-300 text-xs">{r.mnrKwh > 0 ? fmtNum(r.mnrKwh) : '—'}</td>
-                  <td className="px-5 py-3 w-32">
-                    <div className="space-y-1">
-                      <RankingBar value={r.totalKwh} max={maxKwh} color={`${AUTOPISTA_COLOR[r.name] || 'bg-slate-500'}`} />
-                      <span className="text-[10px] text-slate-500">{totalKwh ? ((r.totalKwh / totalKwh) * 100).toFixed(1) : 0}%</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {rows.map((r) => {
+                const c = AUTOPISTA_COLOR[r.name] || DEFAULT_COLOR
+                const subs = groupSubautopista(allWon, r.name)
+                return subs.map((s, si) => (
+                  <tr key={`${r.name}-${s.name}`} className="border-b border-slate-800/40 hover:bg-slate-800/30 transition-colors">
+                    {si === 0 && (
+                      <td className="px-5 py-3 font-bold text-white align-top" rowSpan={subs.length}>
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold text-white ${c.bg} mb-1`}>{r.name}</span>
+                        <p className="text-xs text-slate-500">{r.total} neg. · {fmtKwh(r.totalKwh)}</p>
+                      </td>
+                    )}
+                    <td className="px-5 py-3 text-slate-300 text-xs">{s.name}</td>
+                    <td className="px-5 py-3 text-center font-medium text-white">{s.count}</td>
+                    <td className="px-5 py-3 text-right font-mono font-semibold text-white">{fmtKwh(s.kwh)}</td>
+                    <td className="px-5 py-3 w-28">
+                      <div className="space-y-1">
+                        <RankingBar value={s.kwh} max={maxKwh} color={c.bar} />
+                        <span className="text-[10px] text-slate-500">{totalKwh ? ((s.kwh / totalKwh) * 100).toFixed(1) : 0}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              })}
             </tbody>
           </table>
         </div>
