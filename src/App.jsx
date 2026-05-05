@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Papa from 'papaparse'
 import {
   Zap, TrendingUp, Building2, CheckCircle2, Search,
-  Filter, ChevronUp, ChevronDown, BarChart3, X, RefreshCw, Trophy, Users, Route
+  Filter, ChevronUp, ChevronDown, BarChart3, X, RefreshCw, Trophy, Users, Route, History, Calendar
 } from 'lucide-react'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -964,6 +964,350 @@ function AutopistaView({ mrData, mnrData }) {
   )
 }
 
+// ─── HISTORICO ───────────────────────────────────────────────────────────────
+
+const MESES_LABEL = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
+const MONTH_DATE_MAP = {
+  abril: new Date(2026, 3, 15),
+  mayo:  new Date(2026, 4, 15),
+}
+
+function getPeriodKey(date, type) {
+  const y = date.getFullYear()
+  const m = date.getMonth()
+  if (type === 'mes')       return `${y}-${String(m + 1).padStart(2, '0')}`
+  if (type === 'trimestre') return `${y}-Q${Math.floor(m / 3) + 1}`
+  if (type === 'semestre')  return `${y}-S${m < 6 ? 1 : 2}`
+  return `${y}`
+}
+
+function getPeriodLabel(key, type) {
+  if (type === 'mes') {
+    const [y, mo] = key.split('-')
+    return `${MESES_LABEL[parseInt(mo, 10) - 1]} ${y}`
+  }
+  if (type === 'trimestre') {
+    const [y, q] = key.split('-')
+    return `${q} ${y}`
+  }
+  if (type === 'semestre') {
+    const [y, s] = key.split('-')
+    return `${s} ${y}`
+  }
+  return key
+}
+
+function resolveDate(row) {
+  if (row['Fecha de cierre'] && row['Fecha de cierre'] !== '(Sin valor)') {
+    const d = new Date(row['Fecha de cierre'])
+    if (!isNaN(d)) return d
+  }
+  return MONTH_DATE_MAP[row._monthKey] || null
+}
+
+function HistoricoBarChart({ items, color, colorMR, colorMNR }) {
+  const max = Math.max(...items.map((d) => d.total), 1)
+  return (
+    <div className="flex items-end gap-1.5 h-44 px-1">
+      {items.map((d, i) => (
+        <div key={i} className="flex-1 flex flex-col items-center gap-1 min-w-0 group">
+          <div className="relative w-full flex flex-col justify-end" style={{ height: '140px' }}>
+            {/* tooltip */}
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
+              <div className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-xs text-white whitespace-nowrap shadow-xl">
+                <div className="font-bold text-base text-white">{d.total} clientes</div>
+                <div className="text-blue-300">MR: {d.mrCount}</div>
+                <div className="text-emerald-300">MNR: {d.mnrCount}</div>
+              </div>
+              <div className="w-2 h-2 bg-slate-700 border-r border-b border-slate-600 rotate-45 -mt-1" />
+            </div>
+            {/* stacked bar */}
+            <div className="w-full rounded-t-md overflow-hidden flex flex-col-reverse" style={{ height: `${Math.max((d.total / max) * 130, d.total > 0 ? 4 : 0)}px` }}>
+              <div className="w-full bg-gradient-to-t from-blue-700 to-blue-500 transition-all"
+                style={{ height: `${d.total ? (d.mrCount / d.total) * 100 : 0}%` }} />
+              <div className="w-full bg-gradient-to-t from-emerald-700 to-emerald-500 transition-all"
+                style={{ height: `${d.total ? (d.mnrCount / d.total) * 100 : 0}%` }} />
+            </div>
+          </div>
+          <span className="text-[9px] text-slate-500 text-center w-full truncate leading-tight">{d.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function HistoricoView({ allData }) {
+  const [periodoTab, setPeriodoTab] = useState('mes')
+  const [search, setSearch] = useState('')
+  const [filterMercado, setFilterMercado] = useState('Todos')
+  const [filterKam, setFilterKam] = useState('Todos')
+  const [sortCol, setSortCol] = useState('_date')
+  const [sortDir, setSortDir] = useState('desc')
+
+  const dataWithDates = useMemo(() =>
+    allData
+      .map((r) => ({ ...r, _date: resolveDate(r) }))
+      .filter((r) => r._date !== null),
+    [allData]
+  )
+
+  const totalClientes = dataWithDates.length
+  const totalMR  = dataWithDates.filter((r) => r['Tipo de mercado'] === 'Regulado').length
+  const totalMNR = dataWithDates.filter((r) => r['Tipo de mercado'] === 'No regulado').length
+  const totalKwh = dataWithDates.reduce((s, r) => s + parseNum(r['Consumo mensual']), 0)
+
+  // Agrupar por periodo
+  const chartItems = useMemo(() => {
+    const map = {}
+    dataWithDates.forEach((r) => {
+      const key = getPeriodKey(r._date, periodoTab)
+      if (!map[key]) map[key] = { key, total: 0, mrCount: 0, mnrCount: 0 }
+      map[key].total++
+      if (r['Tipo de mercado'] === 'Regulado') map[key].mrCount++
+      else map[key].mnrCount++
+    })
+    return Object.values(map)
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .map((d) => ({ ...d, label: getPeriodLabel(d.key, periodoTab) }))
+  }, [dataWithDates, periodoTab])
+
+  const kams = useMemo(() =>
+    ['Todos', ...new Set(dataWithDates.map((r) => r['Propietario del negocio']).filter(Boolean))].sort(),
+    [dataWithDates]
+  )
+
+  const filtered = useMemo(() => {
+    let rows = dataWithDates
+    if (filterMercado !== 'Todos') rows = rows.filter((r) => r['Tipo de mercado'] === filterMercado)
+    if (filterKam !== 'Todos')     rows = rows.filter((r) => r['Propietario del negocio'] === filterKam)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      rows = rows.filter((r) =>
+        r['Nombre del negocio']?.toLowerCase().includes(q) ||
+        r['Propietario del negocio']?.toLowerCase().includes(q)
+      )
+    }
+    rows = [...rows].sort((a, b) => {
+      if (sortCol === '_date') {
+        const av = a._date?.getTime() || 0; const bv = b._date?.getTime() || 0
+        return sortDir === 'asc' ? av - bv : bv - av
+      }
+      if (sortCol === 'Consumo mensual') {
+        return sortDir === 'asc'
+          ? parseNum(a[sortCol]) - parseNum(b[sortCol])
+          : parseNum(b[sortCol]) - parseNum(a[sortCol])
+      }
+      const av = (a[sortCol] || '').toLowerCase()
+      const bv = (b[sortCol] || '').toLowerCase()
+      return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
+    })
+    return rows
+  }, [dataWithDates, filterMercado, filterKam, search, sortCol, sortDir])
+
+  const toggleSort = (col) => {
+    if (sortCol === col) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortCol(col); setSortDir('desc') }
+  }
+
+  const PERIODO_TABS = [
+    { key: 'mes',       label: 'Por Mes' },
+    { key: 'trimestre', label: 'Por Trimestre' },
+    { key: 'semestre',  label: 'Por Semestre' },
+    { key: 'año',       label: 'Por Año' },
+  ]
+
+  return (
+    <div className="space-y-6">
+      {/* ── KPIs TOTALES ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KpiCard icon={Trophy} label="Clientes Firmados" value={totalClientes}
+          sub="histórico total" color="border-yellow-700/30 bg-yellow-900/10" accent="text-yellow-400" />
+        <KpiCard icon={Zap} label="kWh Total Cerrado" value={fmtKwh(totalKwh)}
+          sub={`${fmtNum(totalKwh)} kWh/mes`} color="border-blue-800/40 bg-blue-950/30" accent="text-blue-400" />
+        <KpiCard icon={Building2} label="MR Firmados" value={totalMR}
+          sub={`${totalClientes ? ((totalMR / totalClientes) * 100).toFixed(1) : 0}% del total`}
+          color="border-blue-700/30 bg-blue-900/20" accent="text-blue-300" />
+        <KpiCard icon={Building2} label="MNR Firmados" value={totalMNR}
+          sub={`${totalClientes ? ((totalMNR / totalClientes) * 100).toFixed(1) : 0}% del total`}
+          color="border-emerald-700/30 bg-emerald-900/20" accent="text-emerald-400" />
+      </div>
+
+      {/* ── GRÁFICO DE TENDENCIA ── */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={14} className="text-slate-400" />
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Tendencia de Cierres</span>
+          </div>
+          <div className="flex items-center gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50">
+            {PERIODO_TABS.map(({ key, label }) => (
+              <button key={key} onClick={() => setPeriodoTab(key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  periodoTab === key
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-900/40'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {chartItems.length > 0 ? (
+          <>
+            <HistoricoBarChart items={chartItems} />
+            <div className="flex items-center gap-6 pt-2 border-t border-slate-800">
+              <span className="text-xs text-blue-400 flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm bg-blue-500" /> MR (Regulado)
+              </span>
+              <span className="text-xs text-emerald-400 flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500" /> MNR (No Regulado)
+              </span>
+              <span className="text-xs text-slate-500 ml-auto">
+                {chartItems.length} {periodoTab === 'mes' ? 'meses' : periodoTab === 'trimestre' ? 'trimestres' : periodoTab === 'semestre' ? 'semestres' : 'años'} con actividad
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className="text-slate-500 text-sm py-8 text-center">Sin datos históricos disponibles.</p>
+        )}
+      </div>
+
+      {/* ── RESUMEN POR PERIODO ── */}
+      {chartItems.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+          {chartItems.map((item) => (
+            <div key={item.key} className="rounded-xl border border-slate-800 bg-slate-900/30 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300">{item.label}</span>
+                <span className="text-lg font-bold text-white">{item.total}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden flex">
+                <div className="bg-blue-500 h-full transition-all"
+                  style={{ width: `${item.total ? (item.mrCount / item.total) * 100 : 0}%` }} />
+                <div className="bg-emerald-500 h-full transition-all"
+                  style={{ width: `${item.total ? (item.mnrCount / item.total) * 100 : 0}%` }} />
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-blue-400">MR: {item.mrCount}</span>
+                <span className="text-emerald-400">MNR: {item.mnrCount}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── TABLA DE CLIENTES ── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Users size={14} className="text-slate-400" />
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Clientes Firmados · Histórico</span>
+        </div>
+
+        {/* Filtros */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input type="text" placeholder="Buscar cliente o KAM…" value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+          </div>
+          <select value={filterMercado} onChange={(e) => setFilterMercado(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+            <option>Todos</option>
+            <option value="Regulado">Regulado (MR)</option>
+            <option value="No regulado">No Regulado (MNR)</option>
+          </select>
+          <select value={filterKam} onChange={(e) => setFilterKam(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500 max-w-[200px]">
+            {kams.map((k) => <option key={k}>{k}</option>)}
+          </select>
+          {(search || filterMercado !== 'Todos' || filterKam !== 'Todos') && (
+            <button onClick={() => { setSearch(''); setFilterMercado('Todos'); setFilterKam('Todos') }}
+              className="flex items-center gap-1 text-xs text-slate-400 hover:text-red-400 transition-colors">
+              <X size={12} /> Limpiar
+            </button>
+          )}
+          <span className="text-xs text-slate-500 ml-auto">{filtered.length} clientes</span>
+        </div>
+
+        {/* Tabla */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-800 bg-slate-900/60">
+                  {[
+                    { col: 'Nombre del negocio', label: 'Cliente' },
+                    { col: 'Tipo de mercado',    label: 'Mercado' },
+                    { col: 'Consumo mensual',    label: 'kWh/mes' },
+                    { col: 'Propietario del negocio', label: 'KAM' },
+                    { col: 'Autopista',          label: 'Autopista' },
+                    { col: '_date',              label: 'Fecha cierre' },
+                  ].map(({ col, label }) => (
+                    <th key={col}
+                      className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap"
+                      onClick={() => toggleSort(col)}>
+                      <span className="flex items-center gap-1">
+                        {label} <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((row, i) => {
+                  const mr = row['Tipo de mercado'] === 'Regulado'
+                  const kwh = parseNum(row['Consumo mensual'])
+                  return (
+                    <tr key={row['Record ID'] || i}
+                      className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors">
+                      <td className="px-4 py-3 font-medium text-slate-100 max-w-[240px]">
+                        <span className="block truncate" title={row['Nombre del negocio']}>
+                          {row['Nombre del negocio'] || '—'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {mr
+                          ? <Badge text="MR"  className="bg-blue-900/60 text-blue-300 border border-blue-700/30" />
+                          : <Badge text="MNR" className="bg-emerald-900/60 text-emerald-300 border border-emerald-700/30" />}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap font-mono text-sm">
+                        {kwh > 0
+                          ? <span className={mr ? 'text-blue-300' : 'text-emerald-300'}>{fmtNum(kwh)}</span>
+                          : <span className="text-slate-600">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-slate-300 whitespace-nowrap text-xs">
+                        {row['Propietario del negocio'] || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                        {row['Autopista'] || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
+                        {row._date
+                          ? row._date.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+                          : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                      No se encontraron clientes con los filtros actuales.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── MONTH SELECTOR ──────────────────────────────────────────────────────────
 const MESES = [
   { key: 'abril', label: 'Abril 2026' },
@@ -1002,18 +1346,19 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState('mayo')
 
   useEffect(() => {
-    const loadCsv = (url) =>
-      fetch(url).then((r) => r.text()).then((text) =>
-        Papa.parse(text, { header: true, skipEmptyLines: true }).data
-      ).catch(() => [])
+    const loadCsv = (url, monthKey) =>
+      fetch(url).then((r) => r.text()).then((text) => {
+        const rows = Papa.parse(text, { header: true, skipEmptyLines: true }).data
+        return monthKey ? rows.map((r) => ({ ...r, _monthKey: monthKey })) : rows
+      }).catch(() => [])
 
     const base = import.meta.env.BASE_URL
     Promise.all([
       loadCsv(`${base}hubspot-export-summary.csv`),
-      loadCsv(`${base}abril/won-mr.csv`),
-      loadCsv(`${base}abril/won-mnr.csv`),
-      loadCsv(`${base}mayo/won-mr.csv`),
-      loadCsv(`${base}mayo/won-mnr.csv`),
+      loadCsv(`${base}abril/won-mr.csv`,  'abril'),
+      loadCsv(`${base}abril/won-mnr.csv`, 'abril'),
+      loadCsv(`${base}mayo/won-mr.csv`,   'mayo'),
+      loadCsv(`${base}mayo/won-mnr.csv`,  'mayo'),
     ]).then(([p, aMR, aMNR, mMR, mMNR]) => {
       setPipeline(p)
       setAbrilMR(aMR);  setAbrilMNR(aMNR)
@@ -1036,6 +1381,7 @@ export default function App() {
   const totalWonAbril = abrilMR.length + abrilMNR.length
   const totalWonMayo  = mayoMR.length  + mayoMNR.length
   const totalWonKwh = [...wonMR, ...wonMNR].reduce((s, d) => s + parseNum(d['Consumo mensual']), 0)
+  const allHistorico = [...abrilMR, ...abrilMNR, ...mayoMR, ...mayoMNR]
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] text-slate-100">
@@ -1086,11 +1432,19 @@ export default function App() {
               <Route size={14} /> Por Autopista
             </span>
           </TabBtn>
+          <TabBtn active={activeTab === 'historico'} onClick={() => setActiveTab('historico')}>
+            <span className="flex items-center gap-2">
+              <History size={14} /> Histórico
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activeTab === 'historico' ? 'bg-purple-500 text-white' : 'bg-purple-900/60 text-purple-400'}`}>
+                {allHistorico.length}
+              </span>
+            </span>
+          </TabBtn>
         </div>
       </header>
 
       <main className="max-w-screen-xl mx-auto px-6 py-8">
-        {activeTab !== 'pipeline' && (
+        {activeTab !== 'pipeline' && activeTab !== 'historico' && (
           <div className="flex items-center gap-3 mb-6">
             <span className="text-xs text-slate-500 font-medium">Ver mes:</span>
             <MonthSelector selected={selectedMonth} onChange={setSelectedMonth} />
@@ -1100,10 +1454,11 @@ export default function App() {
             </span>
           </div>
         )}
-        {activeTab === 'pipeline' && <PipelineView data={pipeline} />}
-        {activeTab === 'ganados' && <WonTable mrData={wonMR} mnrData={wonMNR} />}
-        {activeTab === 'kam' && <KamView mrData={wonMR} mnrData={wonMNR} />}
+        {activeTab === 'pipeline'  && <PipelineView data={pipeline} />}
+        {activeTab === 'ganados'   && <WonTable mrData={wonMR} mnrData={wonMNR} />}
+        {activeTab === 'kam'       && <KamView mrData={wonMR} mnrData={wonMNR} />}
         {activeTab === 'autopista' && <AutopistaView mrData={wonMR} mnrData={wonMNR} />}
+        {activeTab === 'historico' && <HistoricoView allData={allHistorico} />}
       </main>
 
       <footer className="border-t border-slate-800 mt-12 py-4 text-center text-xs text-slate-600">
