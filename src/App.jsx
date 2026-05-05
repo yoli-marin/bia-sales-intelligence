@@ -999,11 +999,27 @@ function getPeriodLabel(key, type) {
 }
 
 function resolveDate(row) {
-  if (row['Fecha de cierre'] && row['Fecha de cierre'] !== '(Sin valor)') {
-    const d = new Date(row['Fecha de cierre'])
+  // Metabase historical data uses date_signed_contract
+  const rawDate = row['date_signed_contract'] || row['Fecha de cierre']
+  if (rawDate && rawDate !== '(Sin valor)') {
+    const d = new Date(rawDate)
     if (!isNaN(d)) return d
   }
   return MONTH_DATE_MAP[row._monthKey] || null
+}
+
+function normalizeHistorico(row) {
+  return {
+    'Record ID':              row['lead_id'],
+    'Nombre del negocio':     row['lead_name'] || row['partner_name'],
+    'Tipo de mercado':        row['x_studio_t_mercado'],
+    'Consumo mensual':        row['x_studio_consumo_kwh'],
+    'Propietario del negocio': row['source'],
+    'Autopista':              row['autopista'],
+    'Sub-autopista':          row['sub_source'],
+    'Fecha de cierre':        row['date_signed_contract'],
+    _monthKey:                null,
+  }
 }
 
 function HistoricoBarChart({ items, color, colorMR, colorMNR }) {
@@ -1336,11 +1352,12 @@ function MonthSelector({ selected, onChange }) {
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [pipeline, setPipeline] = useState([])
-  const [abrilMR,  setAbrilMR]  = useState([])
-  const [abrilMNR, setAbrilMNR] = useState([])
-  const [mayoMR,   setMayoMR]   = useState([])
-  const [mayoMNR,  setMayoMNR]  = useState([])
+  const [pipeline,   setPipeline]   = useState([])
+  const [abrilMR,    setAbrilMR]    = useState([])
+  const [abrilMNR,   setAbrilMNR]   = useState([])
+  const [mayoMR,     setMayoMR]     = useState([])
+  const [mayoMNR,    setMayoMNR]    = useState([])
+  const [historico,  setHistorico]  = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('pipeline')
   const [selectedMonth, setSelectedMonth] = useState('mayo')
@@ -1359,10 +1376,12 @@ export default function App() {
       loadCsv(`${base}abril/won-mnr.csv`, 'abril'),
       loadCsv(`${base}mayo/won-mr.csv`,   'mayo'),
       loadCsv(`${base}mayo/won-mnr.csv`,  'mayo'),
-    ]).then(([p, aMR, aMNR, mMR, mMNR]) => {
+      loadCsv(`${base}historico.csv`),
+    ]).then(([p, aMR, aMNR, mMR, mMNR, hist]) => {
       setPipeline(p)
       setAbrilMR(aMR);  setAbrilMNR(aMNR)
       setMayoMR(mMR);   setMayoMNR(mMNR)
+      setHistorico(hist.map(normalizeHistorico))
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -1381,7 +1400,7 @@ export default function App() {
   const totalWonAbril = abrilMR.length + abrilMNR.length
   const totalWonMayo  = mayoMR.length  + mayoMNR.length
   const totalWonKwh = [...wonMR, ...wonMNR].reduce((s, d) => s + parseNum(d['Consumo mensual']), 0)
-  const allHistorico = [...abrilMR, ...abrilMNR, ...mayoMR, ...mayoMNR]
+  const allHistorico = historico
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] text-slate-100">
@@ -1399,7 +1418,7 @@ export default function App() {
           </div>
           <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-4 text-xs text-slate-500">
-              <span>Abr: <span className="text-yellow-400 font-bold">{totalWonAbril}</span> · May: <span className="text-green-400 font-bold">{totalWonMayo}</span> ganados</span>
+              <span>Abr: <span className="text-yellow-400 font-bold">{totalWonAbril}</span> · May: <span className="text-green-400 font-bold">{totalWonMayo}</span> ganados · Histórico: <span className="text-purple-400 font-bold">{historico.length}</span></span>
               <span className="text-slate-700">|</span>
               <span>{pipeline.length} en pipeline · {new Date().toLocaleDateString('es-CO', { dateStyle: 'medium' })}</span>
             </div>
