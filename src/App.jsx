@@ -964,29 +964,60 @@ function AutopistaView({ mrData, mnrData }) {
   )
 }
 
+// ─── MONTH SELECTOR ──────────────────────────────────────────────────────────
+const MESES = [
+  { key: 'abril', label: 'Abril 2026' },
+  { key: 'mayo',  label: 'Mayo 2026'  },
+]
+
+function MonthSelector({ selected, onChange }) {
+  return (
+    <div className="flex items-center gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50">
+      {MESES.map(({ key, label }) => (
+        <button
+          key={key}
+          onClick={() => onChange(key)}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            selected === key
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-900/40'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [pipeline, setPipeline] = useState([])
-  const [wonMR, setWonMR] = useState([])
-  const [wonMNR, setWonMNR] = useState([])
+  const [abrilMR,  setAbrilMR]  = useState([])
+  const [abrilMNR, setAbrilMNR] = useState([])
+  const [mayoMR,   setMayoMR]   = useState([])
+  const [mayoMNR,  setMayoMNR]  = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('pipeline')
+  const [selectedMonth, setSelectedMonth] = useState('mayo')
 
   useEffect(() => {
     const loadCsv = (url) =>
       fetch(url).then((r) => r.text()).then((text) =>
         Papa.parse(text, { header: true, skipEmptyLines: true }).data
-      )
+      ).catch(() => [])
 
     const base = import.meta.env.BASE_URL
     Promise.all([
       loadCsv(`${base}hubspot-export-summary.csv`),
-      loadCsv(`${base}won-mr-este-mes.csv`),
-      loadCsv(`${base}won-mnr-este-mes.csv`),
-    ]).then(([p, mr, mnr]) => {
+      loadCsv(`${base}abril/won-mr.csv`),
+      loadCsv(`${base}abril/won-mnr.csv`),
+      loadCsv(`${base}mayo/won-mr.csv`),
+      loadCsv(`${base}mayo/won-mnr.csv`),
+    ]).then(([p, aMR, aMNR, mMR, mMNR]) => {
       setPipeline(p)
-      setWonMR(mr)
-      setWonMNR(mnr)
+      setAbrilMR(aMR);  setAbrilMNR(aMNR)
+      setMayoMR(mMR);   setMayoMNR(mMNR)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -1000,6 +1031,10 @@ export default function App() {
     </div>
   )
 
+  const wonMR  = selectedMonth === 'abril' ? abrilMR  : mayoMR
+  const wonMNR = selectedMonth === 'abril' ? abrilMNR : mayoMNR
+  const totalWonAbril = abrilMR.length + abrilMNR.length
+  const totalWonMayo  = mayoMR.length  + mayoMNR.length
   const totalWonKwh = [...wonMR, ...wonMNR].reduce((s, d) => s + parseNum(d['Consumo mensual']), 0)
 
   return (
@@ -1017,9 +1052,8 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-6">
-            {/* quick stats en header */}
             <div className="hidden md:flex items-center gap-4 text-xs text-slate-500">
-              <span><span className="text-yellow-400 font-bold">{wonMR.length + wonMNR.length}</span> ganados · <span className="text-yellow-400 font-bold">{fmtKwh(totalWonKwh)}</span></span>
+              <span>Abr: <span className="text-yellow-400 font-bold">{totalWonAbril}</span> · May: <span className="text-green-400 font-bold">{totalWonMayo}</span> ganados</span>
               <span className="text-slate-700">|</span>
               <span>{pipeline.length} en pipeline · {new Date().toLocaleDateString('es-CO', { dateStyle: 'medium' })}</span>
             </div>
@@ -1036,7 +1070,7 @@ export default function App() {
           <TabBtn active={activeTab === 'ganados'} onClick={() => setActiveTab('ganados')}>
             <span className="flex items-center gap-2">
               <Trophy size={14} />
-              Ganados este mes
+              Ganados
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activeTab === 'ganados' ? 'bg-yellow-500 text-yellow-900' : 'bg-yellow-900/60 text-yellow-400'}`}>
                 {wonMR.length + wonMNR.length}
               </span>
@@ -1056,6 +1090,16 @@ export default function App() {
       </header>
 
       <main className="max-w-screen-xl mx-auto px-6 py-8">
+        {activeTab !== 'pipeline' && (
+          <div className="flex items-center gap-3 mb-6">
+            <span className="text-xs text-slate-500 font-medium">Ver mes:</span>
+            <MonthSelector selected={selectedMonth} onChange={setSelectedMonth} />
+            <span className="text-xs text-slate-600">·</span>
+            <span className="text-xs text-slate-500">
+              {wonMR.length + wonMNR.length} ganados · {fmtKwh(totalWonKwh)}
+            </span>
+          </div>
+        )}
         {activeTab === 'pipeline' && <PipelineView data={pipeline} />}
         {activeTab === 'ganados' && <WonTable mrData={wonMR} mnrData={wonMNR} />}
         {activeTab === 'kam' && <KamView mrData={wonMR} mnrData={wonMNR} />}
