@@ -1215,12 +1215,10 @@ function HistoricoBarChart({ items, periodoTab }) {
             </div>
 
             {/* Etiqueta vertical debajo */}
-            <div className="flex justify-center" style={{ height: '52px' }}>
-              <span className="text-[9px] text-slate-500 whitespace-nowrap"
-                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', lineHeight: 1 }}>
-                {d.label}
-              </span>
-            </div>
+            <span className="text-[9px] text-slate-500 whitespace-nowrap mt-0.5"
+              style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', lineHeight: 1 }}>
+              {d.label}
+            </span>
           </div>
         ))}
       </div>
