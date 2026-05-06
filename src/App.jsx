@@ -1177,12 +1177,13 @@ function normalizeHistorico(row) {
 function HistoricoBarChart({ items, periodoTab }) {
   const max = Math.max(...items.map((d) => d.total), 1)
   const BAR_H = 160
+  const LABEL_H = 52
 
   return (
-    <div className="w-full">
+    <div className="w-full" style={{ paddingBottom: `${LABEL_H}px` }}>
       <div className="flex items-end gap-1 w-full">
         {items.map((d, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center group min-w-0">
+          <div key={i} className="flex-1 flex flex-col items-center group min-w-0 relative">
 
             {/* Área de la barra */}
             <div className="relative w-full flex flex-col justify-end" style={{ height: `${BAR_H}px` }}>
@@ -1212,13 +1213,18 @@ function HistoricoBarChart({ items, periodoTab }) {
                 <div className="w-full bg-gradient-to-t from-emerald-700 to-emerald-500"
                   style={{ height: `${d.total ? (d.mnrCount / d.total) * 100 : 0}%` }} />
               </div>
-            </div>
 
-            {/* Etiqueta vertical debajo */}
-            <span className="text-[9px] text-slate-500 whitespace-nowrap mt-0.5"
-              style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', lineHeight: 1 }}>
-              {d.label}
-            </span>
+              {/* Etiqueta — anclada a la base de la barra, crece hacia abajo */}
+              <span className="absolute left-1/2 top-full text-[9px] text-slate-500 whitespace-nowrap"
+                style={{
+                  writingMode: 'vertical-rl',
+                  transform: 'translateX(-50%) rotate(180deg)',
+                  lineHeight: 1,
+                  marginTop: '3px',
+                }}>
+                {d.label}
+              </span>
+            </div>
           </div>
         ))}
       </div>
