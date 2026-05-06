@@ -2,34 +2,91 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  box-sizing: border-box;
+* { box-sizing: border-box; }
+
+/* ── DARK THEME (default) ── */
+:root {
+  --bg-app:      #0a0e1a;
+  --bg-header:   #0d1120;
+  --bg-card:     rgba(15,23,42,0.4);
+  --bg-card-2:   rgba(15,23,42,0.3);
+  --bg-card-3:   rgba(15,23,42,0.6);
+  --bg-input:    #1e293b;
+  --bg-row:      rgba(30,41,59,0.4);
+  --bg-badge:    #1e293b;
+  --border:      #1e293b;
+  --border-sub:  rgba(30,41,59,0.6);
+  --text-1:      #f1f5f9;
+  --text-2:      #cbd5e1;
+  --text-3:      #94a3b8;
+  --text-4:      #64748b;
+  --text-5:      #475569;
+  --scrollbar-track: #111827;
+  --scrollbar-thumb: #374151;
+  --scrollbar-hover: #4b5563;
+}
+
+/* ── LIGHT THEME ── */
+html.light {
+  --bg-app:      #f1f5f9;
+  --bg-header:   #ffffff;
+  --bg-card:     rgba(255,255,255,0.95);
+  --bg-card-2:   rgba(255,255,255,0.8);
+  --bg-card-3:   #f8fafc;
+  --bg-input:    #f1f5f9;
+  --bg-row:      rgba(241,245,249,0.6);
+  --bg-badge:    #e2e8f0;
+  --border:      #e2e8f0;
+  --border-sub:  rgba(226,232,240,0.7);
+  --text-1:      #0f172a;
+  --text-2:      #1e293b;
+  --text-3:      #334155;
+  --text-4:      #64748b;
+  --text-5:      #94a3b8;
+  --scrollbar-track: #e2e8f0;
+  --scrollbar-thumb: #94a3b8;
+  --scrollbar-hover: #64748b;
 }
 
 body {
   margin: 0;
-  background-color: #0a0e1a;
-  color: #e2e8f0;
+  background-color: var(--bg-app);
+  color: var(--text-1);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s, color 0.2s;
 }
 
-#root {
-  width: 100%;
-  min-height: 100svh;
-}
+#root { width: 100%; min-height: 100svh; }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #111827;
-}
-::-webkit-scrollbar-thumb {
-  background: #374151;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #4b5563;
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* ── App shell overrides via CSS vars ── */
+.app-bg      { background-color: var(--bg-app) !important; }
+.app-header  { background-color: var(--bg-header) !important; border-color: var(--border) !important; }
+.app-card    { background-color: var(--bg-card) !important; border-color: var(--border) !important; }
+.app-card-2  { background-color: var(--bg-card-2) !important; border-color: var(--border) !important; }
+.app-card-3  { background-color: var(--bg-card-3) !important; border-color: var(--border) !important; }
+.app-input   { background-color: var(--bg-input) !important; border-color: var(--border) !important; color: var(--text-1) !important; }
+.app-row     { border-color: var(--border-sub) !important; }
+.app-row:hover { background-color: var(--bg-row) !important; }
+.app-text-1  { color: var(--text-1) !important; }
+.app-text-2  { color: var(--text-2) !important; }
+.app-text-3  { color: var(--text-3) !important; }
+.app-text-4  { color: var(--text-4) !important; }
+.app-text-5  { color: var(--text-5) !important; }
+.app-border  { border-color: var(--border) !important; }
+.app-border-b { border-bottom-color: var(--border) !important; }
+.app-thead   { background-color: var(--bg-card-3) !important; border-color: var(--border) !important; }
+.app-tab-bar { background-color: var(--bg-input) !important; border-color: var(--border) !important; }
+.app-progress-track  { background-color: var(--bg-badge) !important; }
+.app-nested-thead    { background-color: var(--bg-input) !important; border-color: var(--border-sub) !important; }
+.app-detail-cell     { background-color: var(--bg-card-3) !important; }
+.app-detail-total    { background-color: var(--bg-badge) !important; }
+.app-pagination-bar  { background-color: var(--bg-card-3) !important; border-color: var(--border) !important; }
+.app-pagination-btn  { background-color: var(--bg-input) !important; border-color: var(--border) !important; color: var(--text-2) !important; }
+.app-pagination-btn:hover:not(:disabled) { background-color: var(--bg-row) !important; }
+.app-icon-btn:hover  { background-color: var(--bg-badge) !important; }

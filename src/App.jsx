@@ -3,8 +3,31 @@ import Papa from 'papaparse'
 import { useGoogleLogin } from '@react-oauth/google'
 import {
   Zap, TrendingUp, Building2, CheckCircle2, Search,
-  Filter, ChevronUp, ChevronDown, BarChart3, X, RefreshCw, Trophy, Users, Route, History, Calendar, LogOut
+  Filter, ChevronUp, ChevronDown, BarChart3, X, RefreshCw, Trophy, Users, Route, History, LogOut, Sun, Moon
 } from 'lucide-react'
+
+// ─── THEME ────────────────────────────────────────────────────────────────────
+const THEME_KEY = 'bia_theme'
+
+function useTheme() {
+  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'dark')
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', theme === 'light')
+    document.documentElement.classList.toggle('dark',  theme === 'dark')
+    localStorage.setItem(THEME_KEY, theme)
+  }, [theme])
+  const toggle = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
+  return { theme, toggle }
+}
+
+function ThemeToggle({ theme, toggle }) {
+  return (
+    <button onClick={toggle} title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+      className="p-2 rounded-lg transition-colors app-icon-btn app-text-3">
+      {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
+  )
+}
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 const ALLOWED_DOMAIN = 'bia.app'
@@ -27,7 +50,7 @@ function LoginScreen({ onLogin, error }) {
   })
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center px-4">
+    <div className="min-h-screen app-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8 text-center">
         {/* Logo */}
         <div className="flex flex-col items-center gap-4">
@@ -35,16 +58,16 @@ function LoginScreen({ onLogin, error }) {
             <Zap size={32} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Reporte Bia</h1>
-            <p className="text-slate-400 text-sm mt-1">Clientes Firmados · Sales Intelligence</p>
+            <h1 className="text-2xl font-bold app-text-1">Reporte Bia</h1>
+            <p className="app-text-3 text-sm mt-1">Clientes Firmados · Sales Intelligence</p>
           </div>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-8 space-y-6 shadow-2xl">
+        <div className="rounded-2xl border app-card p-8 space-y-6 shadow-2xl">
           <div>
-            <p className="text-slate-300 text-sm font-medium">Inicia sesión con tu cuenta</p>
-            <p className="text-slate-500 text-xs mt-1">Solo cuentas <span className="text-blue-400 font-semibold">@bia.app</span> tienen acceso</p>
+            <p className="app-text-2 text-sm font-medium">Inicia sesión con tu cuenta</p>
+            <p className="app-text-4 text-xs mt-1">Solo cuentas <span className="text-blue-400 font-semibold">@bia.app</span> tienen acceso</p>
           </div>
 
           {error && (
@@ -67,7 +90,7 @@ function LoginScreen({ onLogin, error }) {
           </button>
         </div>
 
-        <p className="text-slate-600 text-xs">© {new Date().getFullYear()} Bia · Acceso restringido</p>
+        <p className="app-text-5 text-xs">© {new Date().getFullYear()} Bia · Acceso restringido</p>
       </div>
     </div>
   )
@@ -123,7 +146,7 @@ function CompanyLogo({ name, size = 32 }) {
 
   return (
     <div style={{ width: px, height: px }}
-      className="rounded-full overflow-hidden bg-white flex-shrink-0 border border-slate-600 flex items-center justify-center">
+      className="rounded-full overflow-hidden bg-white flex-shrink-0 border app-border flex items-center justify-center">
       <img
         src={`https://logo.clearbit.com/${domain}`}
         alt={name}
@@ -177,13 +200,13 @@ const PROB_ORDER = { Alto: 3, Medio: 2, Bajo: 1 }
 
 function KpiCard({ icon: Icon, label, value, sub, color, accent }) {
   return (
-    <div className={`rounded-2xl p-5 flex flex-col gap-3 border ${color}`}>
+    <div className={`rounded-2xl p-5 flex flex-col gap-3 border app-card ${color}`}>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-widest opacity-60">{label}</span>
+        <span className="text-xs font-semibold uppercase tracking-widest app-text-4">{label}</span>
         <Icon size={18} className={accent} />
       </div>
       <p className={`text-3xl font-bold leading-none ${accent}`}>{value}</p>
-      {sub && <p className="text-xs opacity-50">{sub}</p>}
+      {sub && <p className="text-xs app-text-5">{sub}</p>}
     </div>
   )
 }
@@ -210,7 +233,7 @@ function TabBtn({ active, onClick, children }) {
       className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition-all ${
         active
           ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40'
-          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+          : 'app-text-3 hover:app-text-1 app-icon-btn'
       }`}
     >
       {children}
@@ -281,7 +304,7 @@ function WonTable({ mrData, mnrData }) {
       </div>
 
       {/* Barra visual */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+      <div className="rounded-2xl border app-card p-5">
         <p className="text-xs text-slate-400 mb-3 uppercase tracking-widest font-semibold">Distribución kWh ganados</p>
         <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
           <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-l-full transition-all"
@@ -296,32 +319,32 @@ function WonTable({ mrData, mnrData }) {
       </div>
 
       {/* Filtros */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 flex flex-wrap gap-3 items-center">
+      <div className="rounded-2xl border app-card p-4 flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input type="text" placeholder="Buscar…" value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+            className="w-full pl-9 pr-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500" />
         </div>
         <select value={filterMercado} onChange={(e) => setFilterMercado(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+          className="px-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500">
           <option>Todos</option>
           <option value="Regulado">Regulado (MR)</option>
           <option value="No regulado">No Regulado (MNR)</option>
         </select>
         <select value={filterPropietario} onChange={(e) => setFilterPropietario(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500 max-w-[200px]">
+          className="px-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500 max-w-[200px]">
           {propietarios.map((p) => <option key={p}>{p}</option>)}
         </select>
         <span className="text-xs text-slate-500 ml-auto">{filtered.length} negocios</span>
       </div>
 
       {/* Tabla */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
+      <div className="rounded-2xl border app-card-2 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/60">
+              <tr className="border-b app-thead">
                 {[
                   { col: 'Nombre del negocio', label: 'Negocio' },
                   { col: 'Tipo de mercado', label: 'Mercado' },
@@ -332,7 +355,7 @@ function WonTable({ mrData, mnrData }) {
                   { col: 'Fecha de cierre', label: 'Fecha cierre' },
                 ].map(({ col, label }) => (
                   <th key={col}
-                    className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap"
+                    className="px-4 py-3 text-left text-xs font-semibold app-text-4 uppercase tracking-wider cursor-pointer hover:app-text-2 transition-colors select-none whitespace-nowrap"
                     onClick={() => toggleSort(col)}>
                     <span className="flex items-center gap-1">
                       {label} <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
@@ -347,8 +370,8 @@ function WonTable({ mrData, mnrData }) {
                 const kwh = parseNum(row['Consumo mensual'])
                 return (
                   <tr key={row['Record ID'] || i}
-                    className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors">
-                    <td className="px-4 py-3 font-medium text-slate-100 max-w-[240px]">
+                    className="app-row border-b transition-colors">
+                    <td className="px-4 py-3 font-medium app-text-1 max-w-[240px]">
                       <span className="block truncate" title={row['Nombre del negocio']}>
                         {row['Nombre del negocio'] || '—'}
                       </span>
@@ -370,13 +393,13 @@ function WonTable({ mrData, mnrData }) {
                         ? <span className={mr ? 'text-blue-300' : 'text-emerald-300'}>{fmtNum(kwh)}</span>
                         : <span className="text-slate-600">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-slate-300 whitespace-nowrap text-xs">
+                    <td className="px-4 py-3 app-text-3 whitespace-nowrap text-xs">
                       {row['Propietario del negocio'] || '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                    <td className="px-4 py-3 app-text-4 text-xs whitespace-nowrap">
                       {row['Autopista'] || '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                    <td className="px-4 py-3 app-text-4 text-xs whitespace-nowrap">
                       {row['Fecha de cierre']
                         ? row['Fecha de cierre'].slice(0, 10)
                         : '—'}
@@ -492,7 +515,7 @@ function PipelineView({ data }) {
             <span className="text-xs font-semibold text-blue-300 uppercase tracking-widest">Mercado Regulado (MR)</span>
             <span className="text-lg font-bold text-blue-400">{fmtKwh(kpis.mrKwh)}</span>
           </div>
-          <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+          <div className="h-2 rounded-full app-progress-track overflow-hidden">
             <div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400"
               style={{ width: `${kpis.totalKwh ? (kpis.mrKwh / kpis.totalKwh) * 100 : 0}%` }} />
           </div>
@@ -505,7 +528,7 @@ function PipelineView({ data }) {
             <span className="text-xs font-semibold text-emerald-300 uppercase tracking-widest">Mercado No Regulado (MNR)</span>
             <span className="text-lg font-bold text-emerald-400">{fmtKwh(kpis.mnrKwh)}</span>
           </div>
-          <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+          <div className="h-2 rounded-full app-progress-track overflow-hidden">
             <div className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400"
               style={{ width: `${kpis.totalKwh ? (kpis.mnrKwh / kpis.totalKwh) * 100 : 0}%` }} />
           </div>
@@ -516,7 +539,7 @@ function PipelineView({ data }) {
       </div>
 
       {/* Filtros */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
+      <div className="rounded-2xl border app-card p-5 space-y-4">
         <div className="flex items-center gap-2 flex-wrap">
           <Filter size={14} className="text-slate-400" />
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Filtros</span>
@@ -532,27 +555,27 @@ function PipelineView({ data }) {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input type="text" placeholder="Buscar negocio o propietario…" value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+              className="w-full pl-9 pr-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500" />
           </div>
           <select value={filterMercado} onChange={(e) => { setFilterMercado(e.target.value); setPage(1) }}
-            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+            className="px-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500">
             <option>Todos</option>
             <option value="Regulado">Regulado (MR)</option>
             <option value="No regulado">No Regulado (MNR)</option>
           </select>
           <select value={filterProb} onChange={(e) => { setFilterProb(e.target.value); setPage(1) }}
-            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+            className="px-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500">
             <option value="Todas">Probabilidad</option>
             <option value="Alto">Alta</option>
             <option value="Medio">Media</option>
             <option value="Bajo">Baja</option>
           </select>
           <select value={filterEtapa} onChange={(e) => { setFilterEtapa(e.target.value); setPage(1) }}
-            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500 max-w-[220px]">
+            className="px-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500 max-w-[220px]">
             {etapas.map((e) => <option key={e}>{e}</option>)}
           </select>
           <select value={filterPropietario} onChange={(e) => { setFilterPropietario(e.target.value); setPage(1) }}
-            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500 max-w-[200px]">
+            className="px-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500 max-w-[200px]">
             {propietarios.map((p) => <option key={p}>{p}</option>)}
           </select>
         </div>
@@ -560,11 +583,11 @@ function PipelineView({ data }) {
       </div>
 
       {/* Tabla */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
+      <div className="rounded-2xl border app-card-2 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/60">
+              <tr className="border-b app-thead">
                 {[
                   { col: 'Nombre del negocio', label: 'Negocio' },
                   { col: 'Tipo de mercado', label: 'Mercado' },
@@ -576,7 +599,7 @@ function PipelineView({ data }) {
                   { col: 'Fecha de cierre', label: 'Cierre' },
                 ].map(({ col, label }) => (
                   <th key={col}
-                    className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap"
+                    className="px-4 py-3 text-left text-xs font-semibold app-text-4 uppercase tracking-wider cursor-pointer hover:app-text-2 transition-colors select-none whitespace-nowrap"
                     onClick={() => toggleSort(col)}>
                     <span className="flex items-center gap-1">
                       {label} <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
@@ -591,8 +614,8 @@ function PipelineView({ data }) {
                 const kwh = parseNum(row['Consumo mensual'])
                 return (
                   <tr key={row['Negocio ID'] || i}
-                    className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors">
-                    <td className="px-4 py-3 font-medium text-slate-100 max-w-[220px]">
+                    className="app-row border-b transition-colors">
+                    <td className="px-4 py-3 font-medium app-text-1 max-w-[220px]">
                       <span className="block truncate" title={row['Nombre del negocio']}>{row['Nombre del negocio'] || '—'}</span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -617,11 +640,11 @@ function PipelineView({ data }) {
                         ? <span className={mr ? 'text-blue-300' : 'text-emerald-300'}>{fmtNum(kwh)}</span>
                         : <span className="text-slate-600">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-slate-300 whitespace-nowrap text-xs">{row['Propietario del negocio'] || '—'}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                    <td className="px-4 py-3 app-text-3 whitespace-nowrap text-xs">{row['Propietario del negocio'] || '—'}</td>
+                    <td className="px-4 py-3 app-text-4 text-xs whitespace-nowrap">
                       {row['Subautopista'] && row['Subautopista'] !== '(Sin valor)' ? row['Subautopista'] : '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                    <td className="px-4 py-3 app-text-4 text-xs whitespace-nowrap">
                       {row['Fecha de cierre'] && row['Fecha de cierre'] !== '(Sin valor)'
                         ? row['Fecha de cierre'] : '—'}
                     </td>
@@ -635,15 +658,15 @@ function PipelineView({ data }) {
           </table>
         </div>
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-800 bg-slate-900/40">
-            <p className="text-xs text-slate-500">Página {page} de {totalPages} · {filtered.length} negocios</p>
+          <div className="flex items-center justify-between px-4 py-3 border-t app-pagination-bar app-border">
+            <p className="text-xs app-text-4">Página {page} de {totalPages} · {filtered.length} negocios</p>
             <div className="flex gap-2">
               <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
-                className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 disabled:opacity-30 hover:bg-slate-700 transition-colors">
+                className="px-3 py-1.5 rounded-lg text-xs app-pagination-btn border disabled:opacity-30 transition-colors">
                 ← Anterior
               </button>
               <button disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 disabled:opacity-30 hover:bg-slate-700 transition-colors">
+                className="px-3 py-1.5 rounded-lg text-xs app-pagination-btn border disabled:opacity-30 transition-colors">
                 Siguiente →
               </button>
             </div>
@@ -679,7 +702,7 @@ function groupBy(rows, key) {
 
 function RankingBar({ value, max, color }) {
   return (
-    <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+    <div className="w-full h-1.5 rounded-full app-progress-track overflow-hidden">
       <div className={`h-full rounded-full ${color}`} style={{ width: `${max ? (value / max) * 100 : 0}%` }} />
     </div>
   )
@@ -769,11 +792,11 @@ function KamView({ mrData, mnrData }) {
         </div>
 
         {/* Tabla de puntos */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden mb-3">
+        <div className="rounded-2xl border app-card-2 overflow-hidden mb-3">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/60">
+                <tr className="border-b app-thead">
                   <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">#</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">KAM</th>
                   <th className="px-5 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Negocios</th>
@@ -790,16 +813,16 @@ function KamView({ mrData, mnrData }) {
                   return (
                     <>
                       <tr key={k.kam}
-                        className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors cursor-pointer"
+                        className="app-row border-b transition-colors cursor-pointer"
                         onClick={() => setExpandedKam(isOpen ? null : k.kam)}>
                         <td className="px-5 py-4 text-slate-500 font-mono text-xs">{i + 1}</td>
-                        <td className="px-5 py-4 font-semibold text-white">
+                        <td className="px-5 py-4 font-semibold app-text-1">
                           <span className="flex items-center gap-2">
                             {k.kam}
-                            <ChevronDown size={12} className={`text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                            <ChevronDown size={12} className={`app-text-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-center text-slate-300">{k.deals.length}</td>
+                        <td className="px-5 py-4 text-center app-text-2">{k.deals.length}</td>
                         <td className="px-5 py-4 text-center">
                           <span className={`text-lg font-bold ${cumpleK ? 'text-green-400' : 'text-yellow-400'}`}>
                             {k.puntos}
@@ -808,7 +831,7 @@ function KamView({ mrData, mnrData }) {
                         </td>
                         <td className="px-5 py-4 min-w-[200px]">
                           <div className="space-y-1">
-                            <div className="h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                            <div className="h-2.5 rounded-full app-progress-track overflow-hidden">
                               <div className={`h-full rounded-full transition-all ${cumpleK ? 'bg-gradient-to-r from-green-600 to-green-400' : 'bg-gradient-to-r from-yellow-700 to-yellow-500'}`}
                                 style={{ width: `${pct}%` }} />
                             </div>
@@ -826,12 +849,12 @@ function KamView({ mrData, mnrData }) {
                       </tr>
                       {/* Detalle de negocios expandible */}
                       {isOpen && (
-                        <tr key={`${k.kam}-detail`} className="border-b border-slate-800">
-                          <td colSpan={6} className="px-5 pb-4 pt-0 bg-slate-900/60">
-                            <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+                        <tr key={`${k.kam}-detail`} className="border-b app-border">
+                          <td colSpan={6} className="px-5 pb-4 pt-0 app-detail-cell">
+                            <div className="rounded-xl border app-border overflow-hidden">
                               <table className="w-full text-xs">
                                 <thead>
-                                  <tr className="bg-slate-800/60 border-b border-slate-700/50">
+                                  <tr className="app-nested-thead border-b">
                                     <th className="px-4 py-2 text-left text-slate-400 font-semibold">Negocio</th>
                                     <th className="px-4 py-2 text-right text-slate-400 font-semibold">kWh/mes</th>
                                     <th className="px-4 py-2 text-center text-slate-400 font-semibold">Puntos</th>
@@ -839,8 +862,8 @@ function KamView({ mrData, mnrData }) {
                                 </thead>
                                 <tbody>
                                   {k.deals.sort((a, b) => b.puntos - a.puntos).map((d, di) => (
-                                    <tr key={di} className="border-b border-slate-800/40 hover:bg-slate-800/20">
-                                      <td className="px-4 py-2 text-slate-200">
+                                    <tr key={di} className="app-row border-b">
+                                      <td className="px-4 py-2 app-text-2">
                                         {d.nombre}
                                         {d.excepcion && <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">excepción</span>}
                                       </td>
@@ -852,10 +875,10 @@ function KamView({ mrData, mnrData }) {
                                       </td>
                                     </tr>
                                   ))}
-                                  <tr className="bg-slate-800/40">
-                                    <td className="px-4 py-2 font-bold text-white">Total</td>
-                                    <td className="px-4 py-2 text-right font-mono text-white font-bold">{fmtNum(k.deals.reduce((s, d) => s + d.kwh, 0))}</td>
-                                    <td className="px-4 py-2 text-center font-bold text-white">{k.puntos} pts</td>
+                                  <tr className="app-detail-total">
+                                    <td className="px-4 py-2 font-bold app-text-1">Total</td>
+                                    <td className="px-4 py-2 text-right font-mono app-text-1 font-bold">{fmtNum(k.deals.reduce((s, d) => s + d.kwh, 0))}</td>
+                                    <td className="px-4 py-2 text-center font-bold app-text-1">{k.puntos} pts</td>
                                   </tr>
                                 </tbody>
                               </table>
@@ -889,15 +912,15 @@ function KamView({ mrData, mnrData }) {
       </div>
 
       {/* ── RANKING GENERAL (todos los KAMs) ── */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-2">
-          <Users size={14} className="text-slate-400" />
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Ranking general por kWh · todos los KAMs</span>
+      <div className="rounded-2xl border app-card-2 overflow-hidden">
+        <div className="px-5 py-4 border-b app-border flex items-center gap-2">
+          <Users size={14} className="app-text-3" />
+          <span className="text-xs font-semibold app-text-3 uppercase tracking-widest">Ranking general por kWh · todos los KAMs</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/60">
+              <tr className="border-b app-thead">
                 <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider w-8">#</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">KAM</th>
                 <th className="px-5 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Negocios</th>
@@ -909,16 +932,16 @@ function KamView({ mrData, mnrData }) {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.name} className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors">
+                <tr key={r.name} className="app-row border-b transition-colors">
                   <td className="px-5 py-3 text-slate-500 font-mono text-xs">{i + 1}</td>
-                  <td className="px-5 py-3 font-semibold text-slate-100">
+                  <td className="px-5 py-3 font-semibold app-text-1">
                     {r.name}
-                    {KAMS_CON_META.has(r.name) && <span className="ml-2 text-[10px] text-slate-500">· con meta</span>}
+                    {KAMS_CON_META.has(r.name) && <span className="ml-2 text-[10px] app-text-4">· con meta</span>}
                   </td>
-                  <td className="px-5 py-3 text-center font-bold text-white">{r.total}</td>
+                  <td className="px-5 py-3 text-center font-bold app-text-1">{r.total}</td>
                   <td className="px-5 py-3 text-center text-blue-300">{r.mrCount || '—'}</td>
                   <td className="px-5 py-3 text-center text-emerald-300">{r.mnrCount || '—'}</td>
-                  <td className="px-5 py-3 text-right font-mono font-bold text-white">{fmtKwh(r.totalKwh)}</td>
+                  <td className="px-5 py-3 text-right font-mono font-bold app-text-1">{fmtKwh(r.totalKwh)}</td>
                   <td className="px-5 py-3 w-32">
                     <div className="space-y-1">
                       <RankingBar value={r.totalKwh} max={maxKwh} color="bg-gradient-to-r from-blue-600 to-purple-500" />
@@ -988,7 +1011,7 @@ function AutopistaView({ mrData, mnrData }) {
             <div key={r.name} className={`rounded-2xl border ${c.border} ${c.card} p-5 space-y-4`}>
               {/* header */}
               <div className="flex items-center justify-between">
-                <span className="font-bold text-white text-base">{r.name}</span>
+                <span className="font-bold app-text-1 text-base">{r.name}</span>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-bold text-white ${c.bg}`}>
                   {r.total} {r.total === 1 ? 'negocio' : 'negocios'}
                 </span>
@@ -1000,14 +1023,14 @@ function AutopistaView({ mrData, mnrData }) {
                   <span className="text-xs text-slate-500">kWh total</span>
                   <span className={`text-sm font-bold ${c.text}`}>{fmtKwh(r.totalKwh)}</span>
                 </div>
-                <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div className="h-2 rounded-full app-progress-track overflow-hidden">
                   <div className={`h-full rounded-full ${c.bar}`} style={{ width: `${(r.totalKwh / maxKwh) * 100}%` }} />
                 </div>
                 <p className="text-[10px] text-slate-500 mt-1">{totalKwh ? ((r.totalKwh / totalKwh) * 100).toFixed(1) : 0}% del total</p>
               </div>
 
               {/* split MR / MNR */}
-              <div className="grid grid-cols-2 gap-3 pb-3 border-b border-slate-800/60">
+              <div className="grid grid-cols-2 gap-3 pb-3 border-b app-border">
                 <div>
                   <p className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider mb-1">MR</p>
                   <p className="text-sm font-bold text-blue-300">{r.mrCount} neg. · {fmtKwh(r.mrKwh)}</p>
@@ -1025,13 +1048,13 @@ function AutopistaView({ mrData, mnrData }) {
                   {subs.map((s) => (
                     <div key={s.name} className="space-y-1">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-slate-300">{s.name}</span>
+                        <span className="text-xs app-text-2">{s.name}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-slate-500">{s.count} neg.</span>
                           <span className={`text-xs font-semibold ${c.text}`}>{fmtKwh(s.kwh)}</span>
                         </div>
                       </div>
-                      <div className="h-1 rounded-full bg-slate-800 overflow-hidden">
+                      <div className="h-1 rounded-full app-progress-track overflow-hidden">
                         <div className={`h-full rounded-full ${c.bar} opacity-70`}
                           style={{ width: `${(s.kwh / maxSubKwh) * 100}%` }} />
                       </div>
@@ -1045,15 +1068,15 @@ function AutopistaView({ mrData, mnrData }) {
       </div>
 
       {/* Tabla resumen */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-2">
-          <Route size={14} className="text-slate-400" />
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Resumen por autopista · sub-autopista</span>
+      <div className="rounded-2xl border app-card-2 overflow-hidden">
+        <div className="px-5 py-4 border-b app-border flex items-center gap-2">
+          <Route size={14} className="app-text-3" />
+          <span className="text-xs font-semibold app-text-3 uppercase tracking-widest">Resumen por autopista · sub-autopista</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/60">
+              <tr className="border-b app-thead">
                 <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Autopista</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Sub-autopista</th>
                 <th className="px-5 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Negocios</th>
@@ -1066,16 +1089,16 @@ function AutopistaView({ mrData, mnrData }) {
                 const c = AUTOPISTA_COLOR[r.name] || DEFAULT_COLOR
                 const subs = groupSubautopista(allWon, r.name)
                 return subs.map((s, si) => (
-                  <tr key={`${r.name}-${s.name}`} className="border-b border-slate-800/40 hover:bg-slate-800/30 transition-colors">
+                  <tr key={`${r.name}-${s.name}`} className="app-row border-b transition-colors">
                     {si === 0 && (
-                      <td className="px-5 py-3 font-bold text-white align-top" rowSpan={subs.length}>
+                      <td className="px-5 py-3 font-bold app-text-1 align-top" rowSpan={subs.length}>
                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold text-white ${c.bg} mb-1`}>{r.name}</span>
-                        <p className="text-xs text-slate-500">{r.total} neg. · {fmtKwh(r.totalKwh)}</p>
+                        <p className="text-xs app-text-4">{r.total} neg. · {fmtKwh(r.totalKwh)}</p>
                       </td>
                     )}
-                    <td className="px-5 py-3 text-slate-300 text-xs">{s.name}</td>
-                    <td className="px-5 py-3 text-center font-medium text-white">{s.count}</td>
-                    <td className="px-5 py-3 text-right font-mono font-semibold text-white">{fmtKwh(s.kwh)}</td>
+                    <td className="px-5 py-3 app-text-2 text-xs">{s.name}</td>
+                    <td className="px-5 py-3 text-center font-medium app-text-1">{s.count}</td>
+                    <td className="px-5 py-3 text-right font-mono font-semibold app-text-1">{fmtKwh(s.kwh)}</td>
                     <td className="px-5 py-3 w-28">
                       <div className="space-y-1">
                         <RankingBar value={s.kwh} max={maxKwh} color={c.bar} />
@@ -1166,9 +1189,9 @@ function HistoricoBarChart({ items, periodoTab }) {
 
               {/* Tooltip al hacer hover */}
               <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-20 pointer-events-none">
-                <div className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-xs text-white whitespace-nowrap shadow-xl">
-                  <div className="font-semibold text-slate-300 mb-1">{d.label}</div>
-                  <div className="font-bold text-lg text-white leading-none">{d.total} cierres</div>
+                <div className="app-card-3 border app-border rounded-lg px-3 py-2 text-xs app-text-1 whitespace-nowrap shadow-xl">
+                  <div className="font-semibold app-text-2 mb-1">{d.label}</div>
+                  <div className="font-bold text-lg app-text-1 leading-none">{d.total} cierres</div>
                   <div className="mt-1.5 space-y-0.5">
                     <div className="flex items-center gap-1.5 text-blue-300">
                       <span className="inline-block w-2 h-2 rounded-sm bg-blue-500" /> MR: <span className="font-bold">{d.mrCount}</span>
@@ -1178,7 +1201,7 @@ function HistoricoBarChart({ items, periodoTab }) {
                     </div>
                   </div>
                 </div>
-                <div className="w-2 h-2 bg-slate-700 border-r border-b border-slate-600 rotate-45 -mt-1" />
+                <div className="w-2 h-2 app-card-3 border-r border-b app-border rotate-45 -mt-1" />
               </div>
 
               {/* Barra apilada */}
@@ -1313,19 +1336,19 @@ function HistoricoView({ allData }) {
       </div>
 
       {/* ── GRÁFICO DE TENDENCIA ── */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 space-y-4">
+      <div className="rounded-2xl border app-card p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <TrendingUp size={14} className="text-slate-400" />
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Tendencia de Cierres</span>
           </div>
-          <div className="flex items-center gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50">
+          <div className="flex items-center gap-1 app-tab-bar rounded-xl p-1 border">
             {PERIODO_TABS.map(({ key, label }) => (
               <button key={key} onClick={() => setPeriodoTab(key)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   periodoTab === key
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-900/40'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'app-text-3 hover:app-text-1'
                 }`}>
                 {label}
               </button>
@@ -1336,7 +1359,7 @@ function HistoricoView({ allData }) {
         {chartItems.length > 0 ? (
           <>
             <HistoricoBarChart items={chartItems} periodoTab={periodoTab} />
-            <div className="flex items-center gap-6 pt-2 border-t border-slate-800">
+            <div className="flex items-center gap-6 pt-2 border-t app-border">
               <span className="text-xs text-blue-400 flex items-center gap-1.5">
                 <span className="inline-block w-3 h-3 rounded-sm bg-blue-500" /> MR (Regulado)
               </span>
@@ -1361,16 +1384,16 @@ function HistoricoView({ allData }) {
         </div>
 
         {/* Filtros */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 flex flex-wrap gap-3 items-center">
+        <div className="rounded-2xl border app-card p-4 flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-[200px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input type="text" placeholder="Buscar cliente…" value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+              className="w-full pl-9 pr-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500" />
           </div>
           {/* Filtro mes de cierre */}
           <select value={filterMes} onChange={(e) => setFilterMes(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+            className="px-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500">
             {mesesDisponibles.map((m) =>
               m === 'Todos'
                 ? <option key="todos" value="Todos">Todos los meses</option>
@@ -1378,13 +1401,13 @@ function HistoricoView({ allData }) {
             )}
           </select>
           <select value={filterMercado} onChange={(e) => setFilterMercado(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+            className="px-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500">
             <option>Todos</option>
             <option value="Regulado">Regulado (MR)</option>
             <option value="No regulado">No Regulado (MNR)</option>
           </select>
           <select value={filterKam} onChange={(e) => setFilterKam(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500 max-w-[200px]">
+            className="px-3 py-2 rounded-lg app-input text-sm focus:outline-none focus:border-blue-500 max-w-[200px]">
             {kams.map((k) => <option key={k}>{k}</option>)}
           </select>
           {(search || filterMercado !== 'Todos' || filterKam !== 'Todos' || filterMes !== 'Todos') && (
@@ -1397,11 +1420,11 @@ function HistoricoView({ allData }) {
         </div>
 
         {/* Tabla */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/30 overflow-hidden">
+        <div className="rounded-2xl border app-card-2 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/60">
+                <tr className="border-b app-thead">
                   <th className="px-4 py-3 w-12" />
                   {[
                     { col: 'Nombre del negocio',      label: 'Cliente' },
@@ -1412,7 +1435,7 @@ function HistoricoView({ allData }) {
                     { col: '_date',                    label: 'Fecha cierre' },
                   ].map(({ col, label }) => (
                     <th key={col}
-                      className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap"
+                      className="px-4 py-3 text-left text-xs font-semibold app-text-4 uppercase tracking-wider cursor-pointer hover:app-text-2 transition-colors select-none whitespace-nowrap"
                       onClick={() => toggleSort(col)}>
                       <span className="flex items-center gap-1">
                         {label} <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
@@ -1428,13 +1451,13 @@ function HistoricoView({ allData }) {
                   const nombre = row['Nombre del negocio'] || ''
                   return (
                     <tr key={row['Record ID'] || i}
-                      className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors">
+                      className="app-row border-b transition-colors">
                       {/* Logo */}
                       <td className="pl-4 py-2.5 w-12">
                         <CompanyLogo name={nombre} size={34} />
                       </td>
                       {/* Nombre */}
-                      <td className="px-4 py-2.5 font-medium text-slate-100 max-w-[220px]">
+                      <td className="px-4 py-2.5 font-medium app-text-1 max-w-[220px]">
                         <span className="block truncate" title={nombre}>
                           {nombre || '—'}
                         </span>
@@ -1449,7 +1472,7 @@ function HistoricoView({ allData }) {
                           ? <span className={mr ? 'text-blue-300' : 'text-emerald-300'}>{fmtNum(kwh)}</span>
                           : <span className="text-slate-600">—</span>}
                       </td>
-                      <td className="px-4 py-2.5 text-slate-300 whitespace-nowrap text-xs">
+                      <td className="px-4 py-2.5 app-text-2 whitespace-nowrap text-xs">
                         {row['Propietario del negocio'] || '—'}
                       </td>
                       <td className="px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap">
@@ -1487,7 +1510,7 @@ const MESES = [
 
 function MonthSelector({ selected, onChange }) {
   return (
-    <div className="flex items-center gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50">
+    <div className="flex items-center gap-1 app-tab-bar rounded-xl p-1 border">
       {MESES.map(({ key, label }) => (
         <button
           key={key}
@@ -1495,7 +1518,7 @@ function MonthSelector({ selected, onChange }) {
           className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
             selected === key
               ? 'bg-blue-600 text-white shadow-md shadow-blue-900/40'
-              : 'text-slate-400 hover:text-slate-200'
+              : 'app-text-3 hover:app-text-1'
           }`}
         >
           {label}
@@ -1507,6 +1530,9 @@ function MonthSelector({ selected, onChange }) {
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  const { theme, toggle: toggleTheme } = useTheme()
+
   // ── Auth ──────────────────────────────────────────────────────────────────
   const [user,      setUser]      = useState(() => {
     try { return JSON.parse(localStorage.getItem(AUTH_KEY)) } catch { return null }
@@ -1568,7 +1594,7 @@ export default function App() {
   }, [])
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0e1a]">
+    <div className="min-h-screen flex items-center justify-center app-bg">
       <div className="text-center">
         <RefreshCw size={32} className="animate-spin text-blue-400 mx-auto mb-3" />
         <p className="text-slate-400 text-sm">Cargando datos HubSpot…</p>
@@ -1584,16 +1610,16 @@ export default function App() {
   const allHistorico = historico
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] text-slate-100">
+    <div className="min-h-screen app-bg app-text-1">
       {/* HEADER */}
-      <header className="border-b border-slate-800 bg-[#0d1120] sticky top-0 z-50">
+      <header className="app-header border-b sticky top-0 z-50">
         <div className="max-w-screen-xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
               <Zap size={16} className="text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold leading-none text-white">Reporte Funnel Comercial · Bia</h1>
+              <h1 className="text-base font-bold leading-none app-text-1">Reporte Funnel Comercial · Bia</h1>
               <p className="text-[10px] text-slate-500 mt-0.5">Sales Intelligence · HubSpot Export</p>
             </div>
           </div>
@@ -1603,8 +1629,10 @@ export default function App() {
               <span className="text-slate-700">|</span>
               <span>{pipeline.length} en pipeline · {new Date().toLocaleDateString('es-CO', { dateStyle: 'medium' })}</span>
             </div>
+            {/* Toggle tema */}
+            <ThemeToggle theme={theme} toggle={toggleTheme} />
             {/* Usuario */}
-            <div className="flex items-center gap-2 pl-4 border-l border-slate-700">
+            <div className="flex items-center gap-2 pl-4 border-l app-border">
               {user.picture
                 ? <img src={user.picture} alt={user.name} className="w-7 h-7 rounded-full border border-slate-600" />
                 : <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white">
@@ -1674,7 +1702,7 @@ export default function App() {
         {activeTab === 'historico' && <HistoricoView allData={allHistorico} />}
       </main>
 
-      <footer className="border-t border-slate-800 mt-12 py-4 text-center text-xs text-slate-600">
+      <footer className="border-t app-border mt-12 py-4 text-center text-xs app-text-5">
         Bia Sales Intelligence · Datos HubSpot · {new Date().getFullYear()}
       </footer>
     </div>
