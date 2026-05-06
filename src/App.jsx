@@ -1088,6 +1088,7 @@ function HistoricoView({ allData }) {
   const [search, setSearch] = useState('')
   const [filterMercado, setFilterMercado] = useState('Todos')
   const [filterKam, setFilterKam] = useState('Todos')
+  const [filterMes, setFilterMes] = useState('Todos')
   const [sortCol, setSortCol] = useState('_date')
   const [sortDir, setSortDir] = useState('desc')
 
@@ -1123,10 +1124,20 @@ function HistoricoView({ allData }) {
     [dataWithDates]
   )
 
+  // Meses disponibles para el filtro de la tabla
+  const mesesDisponibles = useMemo(() => {
+    const set = new Set(
+      dataWithDates.map((r) => getPeriodKey(r._date, 'mes'))
+    )
+    const sorted = [...set].sort()
+    return ['Todos', ...sorted.map((k) => ({ key: k, label: getPeriodLabel(k, 'mes') }))]
+  }, [dataWithDates])
+
   const filtered = useMemo(() => {
     let rows = dataWithDates
     if (filterMercado !== 'Todos') rows = rows.filter((r) => r['Tipo de mercado'] === filterMercado)
     if (filterKam !== 'Todos')     rows = rows.filter((r) => r['Propietario del negocio'] === filterKam)
+    if (filterMes !== 'Todos')     rows = rows.filter((r) => getPeriodKey(r._date, 'mes') === filterMes)
     if (search.trim()) {
       const q = search.toLowerCase()
       rows = rows.filter((r) =>
@@ -1220,30 +1231,6 @@ function HistoricoView({ allData }) {
         )}
       </div>
 
-      {/* ── RESUMEN POR PERIODO ── */}
-      {chartItems.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-          {chartItems.map((item) => (
-            <div key={item.key} className="rounded-xl border border-slate-800 bg-slate-900/30 p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-300">{item.label}</span>
-                <span className="text-lg font-bold text-white">{item.total}</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden flex">
-                <div className="bg-blue-500 h-full transition-all"
-                  style={{ width: `${item.total ? (item.mrCount / item.total) * 100 : 0}%` }} />
-                <div className="bg-emerald-500 h-full transition-all"
-                  style={{ width: `${item.total ? (item.mnrCount / item.total) * 100 : 0}%` }} />
-              </div>
-              <div className="flex justify-between text-[10px]">
-                <span className="text-blue-400">MR: {item.mrCount}</span>
-                <span className="text-emerald-400">MNR: {item.mnrCount}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* ── TABLA DE CLIENTES ── */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -1255,10 +1242,19 @@ function HistoricoView({ allData }) {
         <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-[200px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input type="text" placeholder="Buscar cliente o KAM…" value={search}
+            <input type="text" placeholder="Buscar cliente…" value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500" />
           </div>
+          {/* Filtro mes de cierre */}
+          <select value={filterMes} onChange={(e) => setFilterMes(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+            {mesesDisponibles.map((m) =>
+              m === 'Todos'
+                ? <option key="todos" value="Todos">Todos los meses</option>
+                : <option key={m.key} value={m.key}>{m.label}</option>
+            )}
+          </select>
           <select value={filterMercado} onChange={(e) => setFilterMercado(e.target.value)}
             className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
             <option>Todos</option>
@@ -1269,8 +1265,8 @@ function HistoricoView({ allData }) {
             className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-blue-500 max-w-[200px]">
             {kams.map((k) => <option key={k}>{k}</option>)}
           </select>
-          {(search || filterMercado !== 'Todos' || filterKam !== 'Todos') && (
-            <button onClick={() => { setSearch(''); setFilterMercado('Todos'); setFilterKam('Todos') }}
+          {(search || filterMercado !== 'Todos' || filterKam !== 'Todos' || filterMes !== 'Todos') && (
+            <button onClick={() => { setSearch(''); setFilterMercado('Todos'); setFilterKam('Todos'); setFilterMes('Todos') }}
               className="flex items-center gap-1 text-xs text-slate-400 hover:text-red-400 transition-colors">
               <X size={12} /> Limpiar
             </button>
