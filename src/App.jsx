@@ -5,6 +5,67 @@ import {
   Filter, ChevronUp, ChevronDown, BarChart3, X, RefreshCw, Trophy, Users, Route, History, Calendar
 } from 'lucide-react'
 
+// ─── company logo ─────────────────────────────────────────────────────────────
+const LOGO_COLORS = [
+  '#3b82f6','#8b5cf6','#ec4899','#f59e0b',
+  '#10b981','#06b6d4','#f97316','#6366f1','#ef4444','#14b8a6',
+]
+
+function strColor(str) {
+  let h = 0
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h)
+  return LOGO_COLORS[Math.abs(h) % LOGO_COLORS.length]
+}
+
+function guessDomain(name) {
+  return name
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // quitar tildes
+    .replace(/s\.a\.s\.?|s\.a\.?|ltda\.?|sas\b|s\.a\b|colombia|cia\.|z\.f|grupo|&|\(.*?\)/gi, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim() + '.com'
+}
+
+function initials(name) {
+  return name
+    .replace(/s\.a\.s\.?|s\.a\.?|ltda\.?|sas\b/gi, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() || '')
+    .join('')
+}
+
+function CompanyLogo({ name, size = 32 }) {
+  const [err, setErr] = useState(false)
+  const domain  = guessDomain(name || '')
+  const letters = initials(name || '?')
+  const color   = strColor(name || '')
+  const px      = size
+
+  if (err || !name) {
+    return (
+      <div style={{ width: px, height: px, background: color, fontSize: px * 0.38 }}
+        className="rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 select-none">
+        {letters || '?'}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ width: px, height: px }}
+      className="rounded-full overflow-hidden bg-white flex-shrink-0 border border-slate-600 flex items-center justify-center">
+      <img
+        src={`https://logo.clearbit.com/${domain}`}
+        alt={name}
+        style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }}
+        onError={() => setErr(true)}
+      />
+    </div>
+  )
+}
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const parseNum = (v) => {
   if (!v || v === '(Sin valor)') return 0
@@ -1273,13 +1334,14 @@ function HistoricoView({ allData }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-800 bg-slate-900/60">
+                  <th className="px-4 py-3 w-12" />
                   {[
-                    { col: 'Nombre del negocio', label: 'Cliente' },
-                    { col: 'Tipo de mercado',    label: 'Mercado' },
-                    { col: 'Consumo mensual',    label: 'kWh/mes' },
-                    { col: 'Propietario del negocio', label: 'KAM' },
-                    { col: 'Autopista',          label: 'Autopista' },
-                    { col: '_date',              label: 'Fecha cierre' },
+                    { col: 'Nombre del negocio',      label: 'Cliente' },
+                    { col: 'Tipo de mercado',          label: 'Mercado' },
+                    { col: 'Consumo mensual',          label: 'kWh/mes' },
+                    { col: 'Propietario del negocio',  label: 'KAM' },
+                    { col: 'Autopista',                label: 'Autopista' },
+                    { col: '_date',                    label: 'Fecha cierre' },
                   ].map(({ col, label }) => (
                     <th key={col}
                       className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-200 transition-colors select-none whitespace-nowrap"
@@ -1293,33 +1355,39 @@ function HistoricoView({ allData }) {
               </thead>
               <tbody>
                 {filtered.map((row, i) => {
-                  const mr = row['Tipo de mercado'] === 'Regulado'
+                  const mr  = row['Tipo de mercado'] === 'Regulado'
                   const kwh = parseNum(row['Consumo mensual'])
+                  const nombre = row['Nombre del negocio'] || ''
                   return (
                     <tr key={row['Record ID'] || i}
                       className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors">
-                      <td className="px-4 py-3 font-medium text-slate-100 max-w-[240px]">
-                        <span className="block truncate" title={row['Nombre del negocio']}>
-                          {row['Nombre del negocio'] || '—'}
+                      {/* Logo */}
+                      <td className="pl-4 py-2.5 w-12">
+                        <CompanyLogo name={nombre} size={34} />
+                      </td>
+                      {/* Nombre */}
+                      <td className="px-4 py-2.5 font-medium text-slate-100 max-w-[220px]">
+                        <span className="block truncate" title={nombre}>
+                          {nombre || '—'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-2.5 whitespace-nowrap">
                         {mr
                           ? <Badge text="MR"  className="bg-blue-900/60 text-blue-300 border border-blue-700/30" />
                           : <Badge text="MNR" className="bg-emerald-900/60 text-emerald-300 border border-emerald-700/30" />}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap font-mono text-sm">
+                      <td className="px-4 py-2.5 whitespace-nowrap font-mono text-sm">
                         {kwh > 0
                           ? <span className={mr ? 'text-blue-300' : 'text-emerald-300'}>{fmtNum(kwh)}</span>
                           : <span className="text-slate-600">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-slate-300 whitespace-nowrap text-xs">
+                      <td className="px-4 py-2.5 text-slate-300 whitespace-nowrap text-xs">
                         {row['Propietario del negocio'] || '—'}
                       </td>
-                      <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap">
                         {row['Autopista'] || '—'}
                       </td>
-                      <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-slate-400 text-xs whitespace-nowrap">
                         {row._date
                           ? row._date.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
                           : '—'}
@@ -1329,7 +1397,7 @@ function HistoricoView({ allData }) {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                    <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
                       No se encontraron clientes con los filtros actuales.
                     </td>
                   </tr>
