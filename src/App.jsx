@@ -1176,20 +1176,21 @@ function normalizeHistorico(row) {
 
 function HistoricoBarChart({ items, periodoTab }) {
   const max = Math.max(...items.map((d) => d.total), 1)
-  const BAR_H = 160
-  const LABEL_H = 52
+  const BAR_H  = 160
+  const LABEL_H = 54
+  const TOTAL_H = BAR_H + LABEL_H
 
   return (
-    <div className="w-full" style={{ paddingBottom: `${LABEL_H}px` }}>
-      <div className="flex items-end gap-1 w-full">
-        {items.map((d, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center group min-w-0 relative">
+    <div className="w-full" style={{ height: `${TOTAL_H}px` }}>
+      <div className="flex gap-1 w-full h-full">
+        {items.map((d, i) => {
+          const barPx = Math.max((d.total / max) * (BAR_H - 8), d.total > 0 ? 3 : 0)
+          return (
+            <div key={i} className="flex-1 relative group min-w-0">
 
-            {/* Área de la barra */}
-            <div className="relative w-full flex flex-col justify-end" style={{ height: `${BAR_H}px` }}>
-
-              {/* Tooltip al hacer hover */}
-              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-20 pointer-events-none">
+              {/* Tooltip */}
+              <div className="absolute z-20 pointer-events-none hidden group-hover:flex flex-col items-center"
+                style={{ bottom: LABEL_H + barPx + 8, left: '50%', transform: 'translateX(-50%)' }}>
                 <div className="app-card-3 border app-border rounded-lg px-3 py-2 text-xs app-text-1 whitespace-nowrap shadow-xl">
                   <div className="font-semibold app-text-2 mb-1">{d.label}</div>
                   <div className="font-bold text-lg app-text-1 leading-none">{d.total} cierres</div>
@@ -1205,28 +1206,28 @@ function HistoricoBarChart({ items, periodoTab }) {
                 <div className="w-2 h-2 app-card-3 border-r border-b app-border rotate-45 -mt-1" />
               </div>
 
-              {/* Barra apilada */}
-              <div className="w-full rounded-t overflow-hidden flex flex-col-reverse"
-                style={{ height: `${Math.max((d.total / max) * (BAR_H - 8), d.total > 0 ? 3 : 0)}px` }}>
+              {/* Barra apilada — crece desde el piso de barras hacia arriba */}
+              <div className="absolute left-0 right-0 rounded-t overflow-hidden flex flex-col-reverse"
+                style={{ bottom: LABEL_H, height: barPx }}>
                 <div className="w-full bg-gradient-to-t from-blue-700 to-blue-500"
                   style={{ height: `${d.total ? (d.mrCount / d.total) * 100 : 0}%` }} />
                 <div className="w-full bg-gradient-to-t from-emerald-700 to-emerald-500"
                   style={{ height: `${d.total ? (d.mnrCount / d.total) * 100 : 0}%` }} />
               </div>
 
-              {/* Etiqueta — anclada a la base de la barra, crece hacia abajo */}
-              <span className="absolute left-1/2 top-full text-[9px] text-slate-500 whitespace-nowrap"
+              {/* Etiqueta — fija en la zona inferior */}
+              <span className="absolute left-1/2 bottom-0 text-[9px] text-slate-500 whitespace-nowrap"
                 style={{
+                  height: `${LABEL_H}px`,
                   writingMode: 'vertical-rl',
                   transform: 'translateX(-50%) rotate(180deg)',
                   lineHeight: 1,
-                  marginTop: '3px',
                 }}>
                 {d.label}
               </span>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
