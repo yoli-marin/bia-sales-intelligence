@@ -26,26 +26,26 @@
   --scrollbar-hover: #4b5563;
 }
 
-/* ── LIGHT THEME ── */
+/* ── LIGHT THEME (Bia Design System) ── */
 html.light {
-  --bg-app:      #f1f5f9;
-  --bg-header:   #ffffff;
-  --bg-card:     rgba(255,255,255,0.95);
-  --bg-card-2:   rgba(255,255,255,0.8);
-  --bg-card-3:   #f8fafc;
-  --bg-input:    #f1f5f9;
-  --bg-row:      rgba(241,245,249,0.6);
-  --bg-badge:    #e2e8f0;
-  --border:      #e2e8f0;
-  --border-sub:  rgba(226,232,240,0.7);
-  --text-1:      #0f172a;
-  --text-2:      #1e293b;
-  --text-3:      #334155;
-  --text-4:      #64748b;
-  --text-5:      #94a3b8;
-  --scrollbar-track: #e2e8f0;
-  --scrollbar-thumb: #94a3b8;
-  --scrollbar-hover: #64748b;
+  --bg-app:      #F9FAFB;
+  --bg-header:   #FFFFFF;
+  --bg-card:     #FFFFFF;
+  --bg-card-2:   #FFFFFF;
+  --bg-card-3:   #F9FAFB;
+  --bg-input:    #FFFFFF;
+  --bg-row:      rgba(91,61,245,0.04);
+  --bg-badge:    #E5E7EB;
+  --border:      #E5E7EB;
+  --border-sub:  rgba(229,231,235,0.8);
+  --text-1:      #1E1E1E;
+  --text-2:      #2D2D42;
+  --text-3:      #5C5C70;
+  --text-4:      #8C8CA0;
+  --text-5:      #ADADBD;
+  --scrollbar-track: #F3F4F6;
+  --scrollbar-thumb: #D1D5DB;
+  --scrollbar-hover: #9CA3AF;
 }
 
 body {
@@ -70,6 +70,10 @@ body {
 .app-card    { background-color: var(--bg-card) !important; border-color: var(--border) !important; }
 .app-card-2  { background-color: var(--bg-card-2) !important; border-color: var(--border) !important; }
 .app-card-3  { background-color: var(--bg-card-3) !important; border-color: var(--border) !important; }
+
+/* Light mode: add subtle shadow to cards so they stand out from surface */
+html.light .app-card,
+html.light .app-card-2 { box-shadow: 0px 1px 3px rgba(16,24,40,0.08), 0px 1px 2px rgba(16,24,40,0.06) !important; }
 .app-input   { background-color: var(--bg-input) !important; border-color: var(--border) !important; color: var(--text-1) !important; }
 .app-row     { border-color: var(--border-sub) !important; }
 .app-row:hover { background-color: var(--bg-row) !important; }
