@@ -1064,14 +1064,14 @@ function HistoricoBarChart({ items, periodoTab }) {
               </div>
             </div>
 
-            {/* Etiqueta rotada */}
-            <div className="mt-2 w-full flex justify-center" style={{ height: '52px' }}>
+            {/* Etiqueta vertical */}
+            <div className="mt-1 w-full flex justify-center" style={{ height: '64px' }}>
               <span
-                className="text-[10px] text-slate-400 font-medium whitespace-nowrap origin-top-left"
+                className="text-[10px] text-slate-400 font-medium whitespace-nowrap"
                 style={{
-                  display: 'block',
-                  transform: 'rotate(-45deg) translateX(-30%)',
-                  lineHeight: '1.2',
+                  writingMode: 'vertical-rl',
+                  transform: 'rotate(180deg)',
+                  lineHeight: '1',
                 }}>
                 {d.label}
               </span>
