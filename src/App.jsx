@@ -1024,39 +1024,37 @@ function normalizeHistorico(row) {
 
 function HistoricoBarChart({ items, periodoTab }) {
   const max = Math.max(...items.map((d) => d.total), 1)
-  // Ancho mínimo por barra según tipo de periodo
-  const minBarW = periodoTab === 'mes' ? 36 : periodoTab === 'trimestre' ? 56 : 72
-  const chartW  = Math.max(items.length * (minBarW + 6), 100)
-  const BAR_H   = 160
+  const BAR_H = 160
 
   return (
-    <div className="overflow-x-auto pb-1 -mx-1 px-1">
-      <div style={{ minWidth: `${chartW}px` }} className="flex items-end gap-1.5">
+    <div className="w-full">
+      <div className="flex items-end gap-1 w-full">
         {items.map((d, i) => (
-          <div key={i} style={{ minWidth: `${minBarW}px` }}
-            className="flex-1 flex flex-col items-center group">
+          <div key={i} className="flex-1 flex flex-col items-center group min-w-0">
 
             {/* Área de la barra */}
             <div className="relative w-full flex flex-col justify-end" style={{ height: `${BAR_H}px` }}>
-              {/* Valor encima */}
-              <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-300 whitespace-nowrap">
-                {d.total}
-              </span>
 
-              {/* Tooltip */}
-              <div className="absolute bottom-full mb-6 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-20 pointer-events-none">
+              {/* Tooltip al hacer hover */}
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-20 pointer-events-none">
                 <div className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-xs text-white whitespace-nowrap shadow-xl">
-                  <div className="font-bold text-sm text-white mb-1">{d.label}</div>
-                  <div className="font-bold text-base text-white">{d.total} clientes</div>
-                  <div className="text-blue-300 mt-0.5">MR: {d.mrCount}</div>
-                  <div className="text-emerald-300">MNR: {d.mnrCount}</div>
+                  <div className="font-semibold text-slate-300 mb-1">{d.label}</div>
+                  <div className="font-bold text-lg text-white leading-none">{d.total} cierres</div>
+                  <div className="mt-1.5 space-y-0.5">
+                    <div className="flex items-center gap-1.5 text-blue-300">
+                      <span className="inline-block w-2 h-2 rounded-sm bg-blue-500" /> MR: <span className="font-bold">{d.mrCount}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-emerald-300">
+                      <span className="inline-block w-2 h-2 rounded-sm bg-emerald-500" /> MNR: <span className="font-bold">{d.mnrCount}</span>
+                    </div>
+                  </div>
                 </div>
                 <div className="w-2 h-2 bg-slate-700 border-r border-b border-slate-600 rotate-45 -mt-1" />
               </div>
 
               {/* Barra apilada */}
-              <div className="w-full rounded-t-md overflow-hidden flex flex-col-reverse"
-                style={{ height: `${Math.max((d.total / max) * (BAR_H - 10), d.total > 0 ? 4 : 0)}px` }}>
+              <div className="w-full rounded-t overflow-hidden flex flex-col-reverse"
+                style={{ height: `${Math.max((d.total / max) * (BAR_H - 8), d.total > 0 ? 3 : 0)}px` }}>
                 <div className="w-full bg-gradient-to-t from-blue-700 to-blue-500"
                   style={{ height: `${d.total ? (d.mrCount / d.total) * 100 : 0}%` }} />
                 <div className="w-full bg-gradient-to-t from-emerald-700 to-emerald-500"
@@ -1064,15 +1062,10 @@ function HistoricoBarChart({ items, periodoTab }) {
               </div>
             </div>
 
-            {/* Etiqueta vertical */}
-            <div className="mt-1 w-full flex justify-center" style={{ height: '64px' }}>
-              <span
-                className="text-[10px] text-slate-400 font-medium whitespace-nowrap"
-                style={{
-                  writingMode: 'vertical-rl',
-                  transform: 'rotate(180deg)',
-                  lineHeight: '1',
-                }}>
+            {/* Etiqueta vertical debajo */}
+            <div className="mt-1 flex justify-center" style={{ height: '60px' }}>
+              <span className="text-[9px] text-slate-500 whitespace-nowrap"
+                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', lineHeight: 1 }}>
                 {d.label}
               </span>
             </div>
